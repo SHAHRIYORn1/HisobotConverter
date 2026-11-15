@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import type { ParsedQuarterData } from './emaktabParser';
+import type { BsbAnalysisData } from './sampleData';
 
 export interface ReportMeta {
   schoolName: string;
@@ -11,6 +12,7 @@ export interface ReportMeta {
   zavuchName: string;
   teacherName: string;
   includeExam?: boolean;
+  bsbType?: string;
 }
 
 // Thin border style for all data cells
@@ -785,5 +787,187 @@ export async function generateAnnualExcel(
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const fileName = `${meta.gradeName} ${meta.subjectName} Yillik hisobot.xlsx`.replace(/[/\\?%*:|"<>]/g, '_');
+  saveAs(blob, fileName);
+}
+
+// 4. Generate BSB Analysis Excel (Topshiriqlar tahlili - 1-ish, 2-ish... Jami, Foizi)
+export async function generateBsbAnalysisExcel(data: BsbAnalysisData, meta: ReportMeta): Promise<void> {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'EdTech eMaktab Analiz';
+
+  const bsbType = meta.bsbType || data.bsbType || '1-BSB';
+  const sheetName = `${bsbType} tahlili`.substring(0, 31);
+  const ws = workbook.addWorksheet(sheetName, {
+    views: [{ showGridLines: true }]
+  });
+
+  const taskCount = data.tasks.length;
+  const totalMaxBall = data.tasks.reduce((sum, t) => sum + (Number(t.maxBall) || 0), 0);
+  const totalCols = taskCount + 4;
+
+  // Setup Column Widths
+  ws.getColumn(1).width = 5;   // #
+  ws.getColumn(2).width = 36;  // FISH
+  for (let c = 3; c <= taskCount + 2; c++) {
+    ws.getColumn(c).width = 12; // Tasks
+  }
+  const jamiColIdx = taskCount + 3;
+  const foiziColIdx = taskCount + 4;
+  ws.getColumn(jamiColIdx).width = 15; // Jami
+  ws.getColumn(foiziColIdx).width = 14; // Foizi
+
+  // Row 1: Title (Centered across columns A to totalCols)
+  // Matching user's screenshot: "7A-sinf  Fizika  fanidan  I chorak  1-BSB  tahlili natijalari"
+  const lastColLetter = ws.getColumn(totalCols).letter;
+  ws.mergeCells(`A1:${lastColLetter}1`);
+  const row1 = ws.getCell('A1');
+  const grade = meta.gradeName ? `${meta.gradeName}-sinf` : '7A-sinf';
+  const subject = meta.subjectName || 'Fizika';
+  const quarter = meta.quarterText || 'I chorak';
+  row1.value = `${grade}  ${subject}  fanidan  ${quarter}  ${bsbType}  tahlili natijalari`;
+  row1.font = { name: 'Times New Roman', size: 14, bold: true };
+  row1.alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getRow(1).height = 32;
+
+  // Row 3: Header Row (Row 2 is empty)
+  const headerRow = ws.getRow(3);
+  headerRow.height = 30;
+
+  headerRow.getCell(1).value = '#';
+  headerRow.getCell(2).value = 'FISH';
+
+  data.tasks.forEach((task, idx) => {
+    headerRow.getCell(3 + idx).value = `${task.name}\n(${task.maxBall} ball)`;
+  });
+
+  headerRow.getCell(jamiColIdx).value = `Jami\n(${totalMaxBall} ball)`;
+  headerRow.getCell(foiziColIdx).value = 'Foizi';
+
+  for (let c = 1; c <= totalCols; c++) {
+    const cell = headerRow.getCell(c);
+    cell.font = { name: 'Times New Roman', size: 10, bold: true };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    cell.border = thinBorder;
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFF2F2F2' }
+    };
+  }
+
+  // Student rows (starting row 4)
+  let currRow = 4;
+  const firstStudentRow = 4;
+  const jamiColLetter = ws.getColumn(jamiColIdx).letter;
+  const firstTaskLetter = ws.getColumn(3).letter;
+  const lastTaskLetter = ws.getColumn(taskCount + 2).letter;
+
+  data.students.forEach((student, idx) => {
+    const row = ws.getRow(currRow);
+    row.height = 20;
+
+    row.getCell(1).value = idx + 1;
+    row.getCell(2).value = student.fullName;
+
+    // Task scores
+    data.tasks.forEach((_, tIdx) => {
+      const score = student.scores[tIdx] ?? 0;
+      row.getCell(3 + tIdx).value = score;
+    });
+
+    // Jami formula: =SUM(C4:G4)
+    row.getCell(jamiColIdx).value = {
+      formula: `SUM(${firstTaskLetter}${currRow}:${lastTaskLetter}${currRow})`,
+      result: student.scores.reduce((a, b) => a + (Number(b) || 0), 0)
+    };
+
+    // Foizi formula: =H4/30 (rasmdagi formula: =H8/30)
+    const rowTotal = student.scores.reduce((a, b) => a + (Number(b) || 0), 0);
+    const pctResult = totalMaxBall > 0 ? (rowTotal / totalMaxBall) : 0;
+    row.getCell(foiziColIdx).value = {
+      formula: `${jamiColLetter}${currRow}/${totalMaxBall || 1}`,
+      result: pctResult
+    };
+    row.getCell(foiziColIdx).numFmt = '0.00%';
+
+    for (let c = 1; c <= totalCols; c++) {
+      const cell = row.getCell(c);
+      cell.border = thinBorder;
+      cell.font = { name: 'Times New Roman', size: 10 };
+      cell.alignment = {
+        horizontal: c === 2 ? 'left' : 'center',
+        vertical: 'middle'
+      };
+    }
+
+    currRow++;
+  });
+
+  const lastStudentRow = currRow - 1;
+
+  // Average row
+  if (data.students.length > 0) {
+    const avgRow = ws.getRow(currRow);
+    avgRow.height = 22;
+    avgRow.getCell(1).value = '';
+    avgRow.getCell(2).value = "O'rtacha:";
+    avgRow.getCell(2).font = { name: 'Times New Roman', size: 10, bold: true };
+    avgRow.getCell(2).alignment = { horizontal: 'right', vertical: 'middle' };
+
+    for (let c = 3; c <= taskCount + 2; c++) {
+      const colLet = ws.getColumn(c).letter;
+      avgRow.getCell(c).value = {
+        formula: `AVERAGE(${colLet}${firstStudentRow}:${colLet}${lastStudentRow})`
+      };
+      avgRow.getCell(c).numFmt = '0.0';
+      avgRow.getCell(c).font = { name: 'Times New Roman', size: 10, bold: true };
+      avgRow.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' };
+      avgRow.getCell(c).border = thinBorder;
+    }
+
+    // Jami average
+    avgRow.getCell(jamiColIdx).value = {
+      formula: `AVERAGE(${jamiColLetter}${firstStudentRow}:${jamiColLetter}${lastStudentRow})`
+    };
+    avgRow.getCell(jamiColIdx).numFmt = '0.0';
+    avgRow.getCell(jamiColIdx).font = { name: 'Times New Roman', size: 10, bold: true };
+    avgRow.getCell(jamiColIdx).alignment = { horizontal: 'center', vertical: 'middle' };
+    avgRow.getCell(jamiColIdx).border = thinBorder;
+
+    // Foizi average
+    avgRow.getCell(foiziColIdx).value = {
+      formula: `${jamiColLetter}${currRow}/${totalMaxBall || 1}`
+    };
+    avgRow.getCell(foiziColIdx).numFmt = '0.00%';
+    avgRow.getCell(foiziColIdx).font = { name: 'Times New Roman', size: 10, bold: true };
+    avgRow.getCell(foiziColIdx).alignment = { horizontal: 'center', vertical: 'middle' };
+    avgRow.getCell(foiziColIdx).border = thinBorder;
+
+    avgRow.getCell(1).border = thinBorder;
+    avgRow.getCell(2).border = thinBorder;
+
+    currRow++;
+  }
+
+  // Signatures (O'IBDO' and O'qituvchi with underline border)
+  const sigRow1 = ws.getRow(currRow + 2);
+  sigRow1.getCell(2).value = "O‘IBDO‘ :";
+  sigRow1.getCell(2).font = { name: 'Times New Roman', size: 10, bold: true };
+  sigRow1.getCell(3).value = '';
+  sigRow1.getCell(3).border = signatureBorder;
+  sigRow1.getCell(4).value = meta.zavuchName || 'A.Berdiyeva';
+  sigRow1.getCell(4).font = { name: 'Times New Roman', size: 10 };
+
+  const sigRow2 = ws.getRow(currRow + 4);
+  sigRow2.getCell(2).value = "O‘qituvchi :";
+  sigRow2.getCell(2).font = { name: 'Times New Roman', size: 10, bold: true };
+  sigRow2.getCell(3).value = '';
+  sigRow2.getCell(3).border = signatureBorder;
+  sigRow2.getCell(4).value = meta.teacherName || 'M.Nazarova';
+  sigRow2.getCell(4).font = { name: 'Times New Roman', size: 10 };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const fileName = `${meta.gradeName || 'Sinf'} ${meta.subjectName || 'Fan'} ${meta.quarterText || ''} ${bsbType} tahlili.xlsx`.replace(/[/\\?%*:|"<>]/g, '_');
   saveAs(blob, fileName);
 }

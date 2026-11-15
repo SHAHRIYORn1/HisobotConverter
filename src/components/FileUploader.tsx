@@ -30,6 +30,14 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
           badge: '1-Chorak jurnali'
         }
       ];
+    } else if (mode === 'bsb_analysis') {
+      return [
+        {
+          title: 'eMaktab Jurnal fayli (ixtiyoriy)',
+          subtitle: 'Faylni tashlasangiz, sinfdagi barcha o‘quvchilar F.I.Sh. (lotincha qilib) va ballari avtomatik tushadi',
+          badge: 'BSB / CHSB jurnali'
+        }
+      ];
     } else if (mode === 'half_year') {
       return [
         {

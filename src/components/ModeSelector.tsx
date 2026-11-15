@@ -1,7 +1,7 @@
 import React from 'react';
-import { Calendar, Layers, Award } from 'lucide-react';
+import { Calendar, Layers, Award, FileSpreadsheet } from 'lucide-react';
 
-export type ReportMode = 'quarter' | 'half_year' | 'annual';
+export type ReportMode = 'quarter' | 'half_year' | 'annual' | 'bsb_analysis';
 
 interface ModeSelectorProps {
   mode: ReportMode;
@@ -36,6 +36,15 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({ mode, onChangeMode }
       icon: Award,
       color: 'from-violet-500 to-purple-600',
       activeRing: 'border-violet-500 ring-2 ring-violet-500/20 bg-violet-50/40'
+    },
+    {
+      id: 'bsb_analysis' as ReportMode,
+      title: 'BSB / CHSB tahlili (Topshiriqlar)',
+      badge: '1-ish, 2-ish... Foiz',
+      desc: 'Topshiriqlar (1-ish, 2-ish...) ballari, Jami va Foiz ko‘rsatkichlari (7A Fizika 1-BSB kabi).',
+      icon: FileSpreadsheet,
+      color: 'from-amber-500 to-orange-600',
+      activeRing: 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/40'
     }
   ];
 
@@ -47,11 +56,11 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({ mode, onChangeMode }
         </span>
         <div>
           <h2 className="text-lg font-bold text-slate-900">Hisobot turini tanlang</h2>
-          <p className="text-xs text-slate-500">O‘zingizga kerakli bo‘lgan hisobot shaklini belgilang</p>
+          <p className="text-xs text-slate-500">O‘zingizga kerakli bo‘lgan hisobot yoki tahlil shaklini belgilang</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {modes.map(item => {
           const Icon = item.icon;
           const isSelected = mode === item.id;
@@ -70,13 +79,13 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({ mode, onChangeMode }
                   <div className={`w-10 h-10 rounded-lg bg-gradient-to-tr ${item.color} flex items-center justify-center text-white shadow-sm`}>
                     <Icon className="w-5 h-5" />
                   </div>
-                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                     isSelected ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
                   }`}>
                     {item.badge}
                   </span>
                 </div>
-                <h3 className="font-bold text-slate-900 text-base mb-1">{item.title}</h3>
+                <h3 className="font-bold text-slate-900 text-sm mb-1 leading-snug">{item.title}</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">{item.desc}</p>
               </div>
 

@@ -5,6 +5,7 @@ import type { ReportMode } from './components/ModeSelector';
 import { MetaForm } from './components/MetaForm';
 import { FileUploader } from './components/FileUploader';
 import { ReportPreview } from './components/ReportPreview';
+import { BsbAnalysisView } from './components/BsbAnalysisView';
 import { HowToGuide } from './components/HowToGuide';
 import { ToastContainer } from './components/Toast';
 import type { ToastMessage } from './components/Toast';
@@ -12,10 +13,11 @@ import type { ReportMeta } from './utils/excelGenerator';
 import { generateQuarterExcel, generateHalfYearExcel, generateAnnualExcel } from './utils/excelGenerator';
 import type { ParsedQuarterData, StudentScore } from './utils/emaktabParser';
 import { parseEmaktabFile } from './utils/emaktabParser';
-import { sampleQuarterData } from './utils/sampleData';
-import { Sparkles, Heart, PlayCircle } from 'lucide-react';
+import type { BsbAnalysisData, BsbStudentRow } from './utils/sampleData';
+import { sampleQuarterData, sampleBsbAnalysisData } from './utils/sampleData';
+import { Sparkles, Heart, PlayCircle, FileSpreadsheet } from 'lucide-react';
 
-const STORAGE_KEY = 'edtech_emaktab_meta_v2';
+const STORAGE_KEY = 'edtech_emaktab_meta_v3';
 
 export function App() {
   const [mode, setMode] = useState<ReportMode>('quarter');
@@ -50,10 +52,11 @@ export function App() {
     }
     return {
       schoolName: "Xonqa tumanidagi 14-umumiy o'rta ta'lim maktab",
-      gradeName: "8-B",
-      subjectName: "Tarbiya",
+      gradeName: "7A",
+      subjectName: "Fizika",
       academicYear: "2025-2026",
       quarterText: "I chorak",
+      bsbType: "1-BSB",
       zavuchName: "A.Berdiyeva",
       teacherName: "M.Nazarova"
     };
@@ -68,10 +71,13 @@ export function App() {
     setMeta(prev => ({ ...prev, ...updated }));
   };
 
-  // Uploaded files and their parsed representations
+  // Uploaded files and their parsed representations (for modes 1, 2, 3)
   const [files, setFiles] = useState<(File | null)[]>([null, null, null, null]);
   const [parsedDataList, setParsedDataList] = useState<(ParsedQuarterData | null)[]>([null, null, null, null]);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+
+  // BSB Analysis State (for mode 4: BSB topshiriqlar tahlili)
+  const [bsbData, setBsbData] = useState<BsbAnalysisData>(sampleBsbAnalysisData);
 
   // Switch mode handler
   const handleModeChange = (newMode: ReportMode) => {
@@ -83,12 +89,19 @@ export function App() {
       handleUpdateMeta({ quarterText: 'I chorak' });
     } else if (newMode === 'half_year') {
       handleUpdateMeta({ quarterText: 'IvaII chorak' });
-    } else {
+    } else if (newMode === 'annual') {
       handleUpdateMeta({ quarterText: 'Yillik hisobot' });
+    } else if (newMode === 'bsb_analysis') {
+      handleUpdateMeta({
+        quarterText: 'I chorak',
+        bsbType: meta.bsbType || '1-BSB',
+        gradeName: meta.gradeName || '7A',
+        subjectName: meta.subjectName || 'Fizika'
+      });
     }
   };
 
-  // Load sample data for immediate test
+  // Load sample data for Quarter mode
   const handleLoadSample = () => {
     setMode('quarter');
     setFiles([new File(["sample"], "8B TARBIYA 1-CHORAK.xlsx", { type: "application/vnd.ms-excel" }), null, null, null]);
@@ -102,7 +115,24 @@ export function App() {
       zavuchName: "A.Berdiyeva",
       teacherName: meta.teacherName || "M.Nazarova"
     });
-    showToast("Namuna ma'lumotlar muvaffaqiyatli yuklandi!", "success", "Tayyor");
+    showToast("Namuna choraklik hisoboti yuklandi!", "success", "Tayyor");
+  };
+
+  // Load sample data for BSB Analysis mode (7A Fizika 1-BSB)
+  const handleLoadBsbSample = () => {
+    setMode('bsb_analysis');
+    setBsbData(sampleBsbAnalysisData);
+    handleUpdateMeta({
+      schoolName: "Xonqa tumanidagi 14-umumiy o'rta ta'lim maktab",
+      gradeName: "7A",
+      subjectName: "Fizika",
+      academicYear: "2025-2026",
+      quarterText: "I chorak",
+      bsbType: "1-BSB",
+      zavuchName: "A.Berdiyeva",
+      teacherName: meta.teacherName || "M.Nazarova"
+    });
+    showToast("7A Fizika 1-BSB tahlili namunasi yuklandi!", "success", "Namuna yuklandi");
   };
 
   // File selection and parsing
@@ -119,9 +149,7 @@ export function App() {
       newParsed[slotIdx] = parsed;
       setParsedDataList(newParsed);
 
-      // Auto-populate meta ONLY if user hasn't explicitly set them
-      // NOTE: User requested that Teacher Name must be entered by user (or keep user's choice)
-      // because eMaktab files often have multiple co-teachers listed and clutters the field.
+      // Auto-populate meta if not set
       const updates: Partial<ReportMeta> = {};
       if (parsed.gradeName && !meta.gradeName) updates.gradeName = parsed.gradeName;
       if (parsed.subjectName && !meta.subjectName) updates.subjectName = parsed.subjectName;
@@ -131,7 +159,32 @@ export function App() {
         handleUpdateMeta(updates);
       }
 
-      showToast(`${file.name} muvaffaqiyatli tahlil qilindi (${parsed.students.length} ta o‘quvchi)`, "success", "Fayl yuklandi");
+      // If in bsb_analysis mode, populate students into BSB table automatically
+      if (mode === 'bsb_analysis') {
+        const totalMax = bsbData.tasks.reduce((sum, t) => sum + (Number(t.maxBall) || 0), 0);
+        const bsbStudents: BsbStudentRow[] = parsed.students.map((st, i) => {
+          const bsbScore = st.totalBsb ?? 0;
+          const scores = bsbData.tasks.map(t => {
+            if (totalMax > 0 && bsbScore > 0) {
+              return Math.min(t.maxBall, Math.round((t.maxBall / totalMax) * bsbScore));
+            }
+            return 0;
+          });
+          return {
+            id: `st-${st.index || i + 1}`,
+            index: i + 1,
+            fullName: st.fullName,
+            scores
+          };
+        });
+        setBsbData(prev => ({
+          ...prev,
+          students: bsbStudents
+        }));
+        showToast(`${parsed.students.length} nafar o‘quvchi BSB tahlili jadvaliga yuklandi!`, "success", "Muvaffaqiyatli");
+      } else {
+        showToast(`${file.name} muvaffaqiyatli tahlil qilindi (${parsed.students.length} ta o‘quvchi)`, "success", "Fayl yuklandi");
+      }
     } catch (err) {
       console.error(err);
       showToast('Faylni o‘qishda xatolik yuz berdi. Iltimos, eMaktab faylini tekshiring!', 'error', 'Fayl xatosi');
@@ -161,7 +214,7 @@ export function App() {
     }
   };
 
-  // Generate Excel report with strict validations & toasts
+  // Generate Excel report with strict validations & toasts (for modes 1, 2, 3)
   const handleDownload = async () => {
     // 1. Validation: Sinf nomi
     if (!meta.gradeName || meta.gradeName.trim() === '') {
@@ -239,16 +292,24 @@ export function App() {
           </h1>
 
           <p className="mt-3 text-sm sm:text-base text-slate-600 max-w-2xl mx-auto">
-            Ortiqcha kunlik baholar va sanalarni avtomatik tozalaydi. BSB, FB va ChSB ballari, Zavuch (O‘IBDO‘) talab qiladigan format va imzo chiziqlari bilan tayyor .xlsx jadvalni 1 soniyada tayyorlaydi.
+            Choraklik, Yarim yillik, Yillik hisobotlar hamda <strong>BSB topshiriqlar (1-ish, 2-ish... Jami va Foiz)</strong> tahlili. Zavuch (O‘IBDO‘) talab qiladigan format va imzo chiziqlari bilan tayyor .xlsx jadvalni 1 soniyada tayyorlaydi.
           </p>
 
-          <div className="mt-5 flex items-center justify-center gap-3">
+          <div className="mt-5 flex items-center justify-center gap-3 flex-wrap">
             <button
               onClick={handleLoadSample}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors cursor-pointer shadow-sm"
             >
               <PlayCircle className="w-4 h-4 text-emerald-600" />
-              <span>Namuna bilan darhol sinab ko‘rish</span>
+              <span>Choraklik namuna (8-B Tarbiya)</span>
+            </button>
+
+            <button
+              onClick={handleLoadBsbSample}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold transition-colors cursor-pointer shadow-sm"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-amber-600" />
+              <span>7A Fizika 1-BSB tahlili namunasi</span>
             </button>
           </div>
         </div>
@@ -272,16 +333,26 @@ export function App() {
           isLoading={isGenerating}
         />
 
-        {/* Live Preview & Download (with inline editing, 0-removal, sort and signature line) */}
-        <ReportPreview
-          mode={mode}
-          meta={meta}
-          parsedDataList={parsedDataList}
-          onDownload={handleDownload}
-          onUpdateStudents={handleUpdateStudents}
-          onShowToast={showToast}
-          isGenerating={isGenerating}
-        />
+        {/* Step 4: Live Preview & Download */}
+        {mode === 'bsb_analysis' ? (
+          <BsbAnalysisView
+            meta={meta}
+            data={bsbData}
+            onUpdateData={setBsbData}
+            onShowToast={showToast}
+            isGenerating={isGenerating}
+          />
+        ) : (
+          <ReportPreview
+            mode={mode}
+            meta={meta}
+            parsedDataList={parsedDataList}
+            onDownload={handleDownload}
+            onUpdateStudents={handleUpdateStudents}
+            onShowToast={showToast}
+            isGenerating={isGenerating}
+          />
+        )}
 
         {/* How to guide */}
         <HowToGuide />
