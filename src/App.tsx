@@ -370,6 +370,7 @@ export function App() {
               onFileSelect={handleFileSelect}
               onFileRemove={handleFileRemove}
               isLoading={isGenerating}
+              quarterText={meta.quarterText}
             />
 
             {/* Step 4: BSB Task Constructor + Random button + Table + Download */}
@@ -391,6 +392,7 @@ export function App() {
               onFileSelect={handleFileSelect}
               onFileRemove={handleFileRemove}
               isLoading={isGenerating}
+              quarterText={meta.quarterText}
             />
 
             {/* Step 4: Live Preview & Download */}

@@ -10,6 +10,7 @@ interface FileUploaderProps {
   onFileSelect: (index: number, file: File) => void;
   onFileRemove: (index: number) => void;
   isLoading?: boolean;
+  quarterText?: string;
 }
 
 export const FileUploader: React.FC<FileUploaderProps> = ({
@@ -17,7 +18,8 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
   files,
   parsedDataList,
   onFileSelect,
-  onFileRemove
+  onFileRemove,
+  quarterText = ''
 }) => {
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -39,16 +41,19 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
         }
       ];
     } else if (mode === 'half_year') {
+      const isThirdFourth = quarterText.includes('III');
+      const q1Label = isThirdFourth ? '3-Chorak' : '1-Chorak';
+      const q2Label = isThirdFourth ? '4-Chorak' : '2-Chorak';
       return [
         {
-          title: '1-fayl: BSB olingan chorak fayli',
-          subtitle: '1-chorak (yoki 3-chorak) jurnali — tizim bundan BSB ballarini oladi',
-          badge: '1-Chorak (BSB)'
+          title: `1-fayl: BSB olingan chorak fayli`,
+          subtitle: `${q1Label} (BSB) jurnali — tizim bundan BSB ballarini oladi`,
+          badge: `${q1Label} (BSB)`
         },
         {
-          title: '2-fayl: ChSB va FB olingan chorak fayli',
-          subtitle: '2-chorak (yoki 4-chorak) jurnali — tizim bundan ChSB va FB ballarini oladi',
-          badge: '2-Chorak (ChSB & FB)'
+          title: `2-fayl: ChSB va FB olingan chorak fayli`,
+          subtitle: `${q2Label} (ChSB & FB) jurnali — tizim bundan ChSB va FB ballarini oladi`,
+          badge: `${q2Label} (ChSB & FB)`
         }
       ];
     } else {
