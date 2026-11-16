@@ -14,8 +14,8 @@ import { generateQuarterExcel, generateHalfYearExcel, generateAnnualExcel } from
 import type { ParsedQuarterData, StudentScore } from './utils/emaktabParser';
 import { parseEmaktabFile } from './utils/emaktabParser';
 import type { BsbAnalysisData, BsbStudentRow } from './utils/sampleData';
-import { sampleQuarterData, sampleBsbAnalysisData } from './utils/sampleData';
-import { Sparkles, Heart, PlayCircle, FileSpreadsheet } from 'lucide-react';
+import { sampleQuarterData, sampleHalfYearData, sampleAnnualData, sampleBsbAnalysisData } from './utils/sampleData';
+import { Sparkles, Heart, PlayCircle, FileSpreadsheet, Layers, Award } from 'lucide-react';
 
 const STORAGE_KEY = 'edtech_emaktab_meta_v4';
 
@@ -128,6 +128,49 @@ export function App() {
       bsbType: "1-BSB"
     });
     showToast("7A Fizika 1-BSB tahlili namunasi yuklandi!", "success", "Namuna yuklandi");
+  };
+
+  // Load sample data for Half-Year mode (11B Tarbiya 1-2 chorak)
+  const handleLoadHalfYearSample = () => {
+    setMode('half_year');
+    setFiles([
+      new File(["sample1"], "11B TARBIA 1-CHORAK.xlsx", { type: "application/vnd.ms-excel" }),
+      new File(["sample2"], "11B TARBIA 2-CHORAK.xlsx", { type: "application/vnd.ms-excel" }),
+      null,
+      null
+    ]);
+    setParsedDataList([sampleHalfYearData[0], sampleHalfYearData[1], null, null]);
+    handleUpdateMeta({
+      gradeName: "11-B",
+      subjectName: "Tarbiya",
+      academicYear: "2026-2027",
+      quarterText: "IvaII chorak"
+    });
+    showToast("Yarim yillik namunaviy hisoboti yuklandi!", "success", "Namuna yuklandi");
+  };
+
+  // Load sample data for Annual mode (7B Tarix 1-4 choraklar)
+  const handleLoadAnnualSample = () => {
+    setMode('annual');
+    setFiles([
+      new File(["sample1"], "7B TARIX 1-CHORAK.xlsx", { type: "application/vnd.ms-excel" }),
+      new File(["sample2"], "7B TARIX 2-CHORAK.xlsx", { type: "application/vnd.ms-excel" }),
+      new File(["sample3"], "7B TARIX 3-CHORAK.xlsx", { type: "application/vnd.ms-excel" }),
+      new File(["sample4"], "7B TARIX 4-CHORAK.xlsx", { type: "application/vnd.ms-excel" })
+    ]);
+    setParsedDataList([
+      sampleAnnualData[0],
+      sampleAnnualData[1],
+      sampleAnnualData[2],
+      sampleAnnualData[3]
+    ]);
+    handleUpdateMeta({
+      gradeName: "7-B",
+      subjectName: "O‘zbekiston tarixi",
+      academicYear: "2026-2027",
+      quarterText: "Yillik hisobot"
+    });
+    showToast("To‘liq yillik namunaviy hisoboti yuklandi!", "success", "Namuna yuklandi");
   };
 
   // File selection and parsing
@@ -281,6 +324,22 @@ export function App() {
               </button>
 
               <button
+                onClick={handleLoadHalfYearSample}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+              >
+                <Layers className="w-4 h-4 text-teal-600" />
+                <span>Yarim yillik namuna</span>
+              </button>
+
+              <button
+                onClick={handleLoadAnnualSample}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+              >
+                <Award className="w-4 h-4 text-purple-600" />
+                <span>Yillik namuna</span>
+              </button>
+
+              <button
                 onClick={handleLoadBsbSample}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold transition-colors cursor-pointer shadow-xs"
               >
@@ -341,6 +400,7 @@ export function App() {
               parsedDataList={parsedDataList}
               onDownload={handleDownload}
               onUpdateStudents={handleUpdateStudents}
+              onUpdateAllDataList={setParsedDataList}
               onShowToast={showToast}
               isGenerating={isGenerating}
             />
