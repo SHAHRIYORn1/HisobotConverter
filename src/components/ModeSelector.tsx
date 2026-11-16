@@ -13,54 +13,64 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({ mode, onChangeMode }
     {
       id: 'quarter' as ReportMode,
       title: 'Oddiy Choraklik hisobot',
+      shortTitle: 'Choraklik hisobot',
       badge: '1 ta fayl',
-      desc: 'Tarix, Ona tili va barcha oddiy fanlar uchun (1 ta chorak jurnali yuklanadi).',
+      desc: 'Tarix, Ona tili va barcha oddiy fanlar',
       icon: Calendar,
       color: 'from-blue-500 to-indigo-600',
-      activeRing: 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/40'
+      activeRing: 'border-blue-500 bg-blue-50/50 shadow-xs ring-2 ring-blue-500/20'
     },
     {
       id: 'half_year' as ReportMode,
       title: 'Qo‘shma Yarim yillik hisobot',
-      badge: '2 ta fayl (I-II yoki III-IV)',
-      desc: 'Tarbiya fani kabi 1-chorakda faqat BSB, 2-chorakda ChSB olinadigan fanlarni 1 ta hisobotga birlashtirish.',
+      shortTitle: 'Yarim yillik hisobot',
+      badge: '2 ta fayl (I-II / III-IV)',
+      desc: 'Tarbiya fani kabi 1-BSB va 2-ChSB fanlari',
       icon: Layers,
       color: 'from-emerald-500 to-teal-600',
-      activeRing: 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/40'
+      activeRing: 'border-emerald-500 bg-emerald-50/50 shadow-xs ring-2 ring-emerald-500/20'
     },
     {
       id: 'annual' as ReportMode,
       title: 'To‘liq Yillik hisobot',
+      shortTitle: 'Yillik hisobot',
       badge: '2 yoki 4 ta fayl',
-      desc: 'Barcha choraklar ballari, o‘rtacha baho, yillik, yakuniy va o‘sish/kamayish dinamikasi hisoboti.',
+      desc: 'Yillik baho, o‘rtacha va o‘sish dinamikasi',
       icon: Award,
       color: 'from-violet-500 to-purple-600',
-      activeRing: 'border-violet-500 ring-2 ring-violet-500/20 bg-violet-50/40'
+      activeRing: 'border-violet-500 bg-violet-50/50 shadow-xs ring-2 ring-violet-500/20'
     },
     {
       id: 'bsb_analysis' as ReportMode,
       title: 'BSB / CHSB tahlili (Topshiriqlar)',
+      shortTitle: 'BSB / CHSB tahlili',
       badge: '1-ish, 2-ish... Foiz',
-      desc: 'Topshiriqlar (1-ish, 2-ish...) ballari, Jami va Foiz ko‘rsatkichlari (7A Fizika 1-BSB kabi).',
+      desc: 'Topshiriqlar ballari, Jami va Foiz tahlili',
       icon: FileSpreadsheet,
       color: 'from-amber-500 to-orange-600',
-      activeRing: 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/40'
+      activeRing: 'border-amber-500 bg-amber-50/50 shadow-xs ring-2 ring-amber-500/20'
     }
   ];
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-      <div className="flex items-center gap-3 mb-4">
-        <span className="w-7 h-7 rounded-full bg-emerald-600 text-white font-bold text-sm flex items-center justify-center">
-          1
-        </span>
-        <div>
-          <h2 className="text-lg font-bold text-slate-900">Hisobot turini tanlang</h2>
-          <p className="text-xs text-slate-500">O‘zingizga kerakli bo‘lgan hisobot yoki tahlil shaklini belgilang</p>
+    <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200">
+      <div className="flex items-center justify-between mb-3.5">
+        <div className="flex items-center gap-2.5">
+          <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">
+            ★
+          </span>
+          <div>
+            <h2 className="text-sm sm:text-base font-bold text-slate-900">
+              Kerakli hisobot turini tanlang
+            </h2>
+          </div>
         </div>
+        <span className="text-xs text-slate-400 font-medium hidden sm:inline">
+          Kerakli rejimga bosing
+        </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         {modes.map(item => {
           const Icon = item.icon;
           const isSelected = mode === item.id;
@@ -68,30 +78,34 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({ mode, onChangeMode }
             <button
               key={item.id}
               onClick={() => onChangeMode(item.id)}
-              className={`relative text-left p-5 rounded-xl border transition-all duration-200 cursor-pointer flex flex-col justify-between ${
+              className={`text-left p-3 sm:p-3.5 rounded-xl border transition-all duration-200 cursor-pointer flex flex-col justify-between ${
                 isSelected
                   ? item.activeRing
-                  : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 bg-white'
+                  : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/80 bg-white'
               }`}
             >
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className={`w-10 h-10 rounded-lg bg-gradient-to-tr ${item.color} flex items-center justify-center text-white shadow-sm`}>
-                    <Icon className="w-5 h-5" />
+                <div className="flex items-center justify-between mb-2">
+                  <div className={`w-8 h-8 rounded-lg bg-gradient-to-tr ${item.color} flex items-center justify-center text-white shadow-xs`}>
+                    <Icon className="w-4 h-4" />
                   </div>
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
                     isSelected ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'
                   }`}>
                     {item.badge}
                   </span>
                 </div>
-                <h3 className="font-bold text-slate-900 text-sm mb-1 leading-snug">{item.title}</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">{item.desc}</p>
+                <h3 className="font-bold text-slate-900 text-xs sm:text-sm mb-0.5 leading-snug">
+                  {item.title}
+                </h3>
+                <p className="text-[11px] text-slate-500 line-clamp-1 leading-normal hidden sm:block">
+                  {item.desc}
+                </p>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center text-xs font-semibold">
-                <span className={isSelected ? 'text-emerald-700' : 'text-slate-400'}>
-                  {isSelected ? '✓ Tanlangan' : 'Tanlash uchun bosing'}
+              <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center text-[11px] font-semibold">
+                <span className={isSelected ? 'text-emerald-700 font-bold' : 'text-slate-400 font-normal'}>
+                  {isSelected ? '✓ Tanlangan' : 'Tanlash'}
                 </span>
               </div>
             </button>

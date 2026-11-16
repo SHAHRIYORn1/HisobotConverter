@@ -17,7 +17,7 @@ import type { BsbAnalysisData, BsbStudentRow } from './utils/sampleData';
 import { sampleQuarterData, sampleBsbAnalysisData } from './utils/sampleData';
 import { Sparkles, Heart, PlayCircle, FileSpreadsheet } from 'lucide-react';
 
-const STORAGE_KEY = 'edtech_emaktab_meta_v3';
+const STORAGE_KEY = 'edtech_emaktab_meta_v4';
 
 export function App() {
   const [mode, setMode] = useState<ReportMode>('quarter');
@@ -30,7 +30,6 @@ export function App() {
     const newToast: ToastMessage = { id, message, type, title };
     setToasts(prev => [...prev, newToast]);
 
-    // Auto dismiss after 4 seconds
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 4000);
@@ -40,22 +39,26 @@ export function App() {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  // Metadata with localStorage persistence
+  // Metadata with localStorage persistence (Default academic year is 2026-2027)
   const [meta, setMeta] = useState<ReportMeta>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return {
+          ...parsed,
+          academicYear: parsed.academicYear || "2026-2027"
+        };
       } catch (e) {
         console.error(e);
       }
     }
     return {
       schoolName: "Xonqa tumanidagi 14-umumiy o'rta ta'lim maktab",
-      gradeName: "7A",
-      subjectName: "Fizika",
-      academicYear: "2025-2026",
-      quarterText: "I chorak",
+      gradeName: "7-A",
+      subjectName: "O‘zbekiston tarixi",
+      academicYear: "2026-2027",
+      quarterText: "1-chorak",
       bsbType: "1-BSB",
       zavuchName: "A.Berdiyeva",
       teacherName: "M.Nazarova"
@@ -86,17 +89,15 @@ export function App() {
     setParsedDataList([null, null, null, null]);
 
     if (newMode === 'quarter') {
-      handleUpdateMeta({ quarterText: 'I chorak' });
+      handleUpdateMeta({ quarterText: '1-chorak' });
     } else if (newMode === 'half_year') {
       handleUpdateMeta({ quarterText: 'IvaII chorak' });
     } else if (newMode === 'annual') {
       handleUpdateMeta({ quarterText: 'Yillik hisobot' });
     } else if (newMode === 'bsb_analysis') {
       handleUpdateMeta({
-        quarterText: 'I chorak',
-        bsbType: meta.bsbType || '1-BSB',
-        gradeName: meta.gradeName || '7A',
-        subjectName: meta.subjectName || 'Fizika'
+        quarterText: meta.quarterText || '1-chorak',
+        bsbType: meta.bsbType || '1-BSB'
       });
     }
   };
@@ -104,16 +105,13 @@ export function App() {
   // Load sample data for Quarter mode
   const handleLoadSample = () => {
     setMode('quarter');
-    setFiles([new File(["sample"], "8B TARBIYA 1-CHORAK.xlsx", { type: "application/vnd.ms-excel" }), null, null, null]);
+    setFiles([new File(["sample"], "7A O‘zbekiston tarixi 1-chorak.xlsx", { type: "application/vnd.ms-excel" }), null, null, null]);
     setParsedDataList([sampleQuarterData, null, null, null]);
     handleUpdateMeta({
-      schoolName: "Xonqa tumanidagi 14-umumiy o'rta ta'lim maktab",
-      gradeName: "8-B",
-      subjectName: "Tarbiya",
-      academicYear: "2025-2026",
-      quarterText: "I chorak",
-      zavuchName: "A.Berdiyeva",
-      teacherName: meta.teacherName || "M.Nazarova"
+      gradeName: "7-A",
+      subjectName: "O‘zbekiston tarixi",
+      academicYear: "2026-2027",
+      quarterText: "1-chorak"
     });
     showToast("Namuna choraklik hisoboti yuklandi!", "success", "Tayyor");
   };
@@ -123,19 +121,17 @@ export function App() {
     setMode('bsb_analysis');
     setBsbData(sampleBsbAnalysisData);
     handleUpdateMeta({
-      schoolName: "Xonqa tumanidagi 14-umumiy o'rta ta'lim maktab",
-      gradeName: "7A",
+      gradeName: "7-A",
       subjectName: "Fizika",
-      academicYear: "2025-2026",
-      quarterText: "I chorak",
-      bsbType: "1-BSB",
-      zavuchName: "A.Berdiyeva",
-      teacherName: meta.teacherName || "M.Nazarova"
+      academicYear: "2026-2027",
+      quarterText: "1-chorak",
+      bsbType: "1-BSB"
     });
     showToast("7A Fizika 1-BSB tahlili namunasi yuklandi!", "success", "Namuna yuklandi");
   };
 
   // File selection and parsing
+  // CRITICAL REQUIREMENT: DO NOT auto-overwrite user's fields with file values!
   const handleFileSelect = async (slotIdx: number, file: File) => {
     try {
       const arrayBuffer = await file.arrayBuffer();
@@ -148,16 +144,6 @@ export function App() {
       const newParsed = [...parsedDataList];
       newParsed[slotIdx] = parsed;
       setParsedDataList(newParsed);
-
-      // Auto-populate meta if not set
-      const updates: Partial<ReportMeta> = {};
-      if (parsed.gradeName && !meta.gradeName) updates.gradeName = parsed.gradeName;
-      if (parsed.subjectName && !meta.subjectName) updates.subjectName = parsed.subjectName;
-      if (parsed.academicYear) updates.academicYear = parsed.academicYear;
-
-      if (Object.keys(updates).length > 0) {
-        handleUpdateMeta(updates);
-      }
 
       // If in bsb_analysis mode, populate students into BSB table automatically
       if (mode === 'bsb_analysis') {
@@ -183,7 +169,7 @@ export function App() {
         }));
         showToast(`${parsed.students.length} nafar o‘quvchi BSB tahlili jadvaliga yuklandi!`, "success", "Muvaffaqiyatli");
       } else {
-        showToast(`${file.name} muvaffaqiyatli tahlil qilindi (${parsed.students.length} ta o‘quvchi)`, "success", "Fayl yuklandi");
+        showToast(`${file.name} tahlil qilindi (${parsed.students.length} ta o‘quvchi)`, "success", "Fayl yuklandi");
       }
     } catch (err) {
       console.error(err);
@@ -216,25 +202,6 @@ export function App() {
 
   // Generate Excel report with strict validations & toasts (for modes 1, 2, 3)
   const handleDownload = async () => {
-    // 1. Validation: Sinf nomi
-    if (!meta.gradeName || meta.gradeName.trim() === '') {
-      showToast('Iltimos, Sinf nomini kiriting! (Masalan: 8-B yoki 7-B)', 'warning', 'Sinf kiritilmagan');
-      return;
-    }
-
-    // 2. Validation: O'qituvchi F.I.Sh.
-    if (!meta.teacherName || meta.teacherName.trim() === '') {
-      showToast('Iltimos, O‘qituvchi F.I.Sh.ni kiriting! (Ushbu fandan dars beradigan ustoz ismi)', 'warning', 'O‘qituvchi kiritilmagan');
-      return;
-    }
-
-    // 3. Validation: Maktab nomi
-    if (!meta.schoolName || meta.schoolName.trim() === '') {
-      showToast('Iltimos, Maktab nomini kiriting!', 'warning', 'Maktab nomi bo‘sh');
-      return;
-    }
-
-    // 4. Validation: File upload check
     if (mode === 'quarter' && !parsedDataList[0]) {
       showToast('Iltimos, avval eMaktab jurnal faylini yuklang!', 'error', 'Fayl yetishmaydi');
       return;
@@ -255,18 +222,26 @@ export function App() {
 
     setIsGenerating(true);
     try {
+      const exportMeta: ReportMeta = {
+        ...meta,
+        gradeName: meta.gradeName || 'Sinf',
+        subjectName: meta.subjectName || 'Fan',
+        academicYear: meta.academicYear || '2026-2027',
+        schoolName: meta.schoolName || "Umumiy o'rta ta'lim maktabi"
+      };
+
       if (mode === 'quarter') {
-        await generateQuarterExcel(parsedDataList[0]!, meta);
+        await generateQuarterExcel(parsedDataList[0]!, exportMeta);
       } else if (mode === 'half_year') {
-        await generateHalfYearExcel(parsedDataList[0]!, parsedDataList[1]!, meta);
+        await generateHalfYearExcel(parsedDataList[0]!, parsedDataList[1]!, exportMeta);
       } else if (mode === 'annual') {
         const valid = parsedDataList.filter((p): p is ParsedQuarterData => p !== null);
-        await generateAnnualExcel(valid, meta);
+        await generateAnnualExcel(valid, exportMeta);
       }
-      showToast("Excel hisobot muvaffaqiyatli yuklab olindi! Imzo joylari bilan tayyor.", "success", "Yuklab olindi");
+      showToast("Excel hisobot muvaffaqiyatli yuklab olindi!", "success", "Yuklab olindi");
     } catch (err: any) {
       console.error(err);
-      showToast(`Hisobot yaratishda xatolik yuz berdi: ${err?.message || ''}`, 'error', 'Xatolik');
+      showToast(`Hisobot yaratishda xatolik: ${err?.message || ''}`, 'error', 'Xatolik');
     } finally {
       setIsGenerating(false);
     }
@@ -279,79 +254,97 @@ export function App() {
 
       <Header />
 
-      {/* Hero Banner */}
+      {/* Hero Banner (Compact & Responsive) */}
       <div className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-4">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>O‘zbekistondagi maktab o‘qituvchilari uchun 1-soniyali hisobot</span>
-          </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="text-center md:text-left">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-2">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>O‘zbekiston maktab o‘qituvchilari uchun 1 soniyali hisobot</span>
+              </div>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+                eMaktab jurnallarini <span className="text-emerald-600">toza Excel</span> hisobotiga aylantiring
+              </h1>
+              <p className="mt-1 text-xs sm:text-sm text-slate-500 max-w-2xl">
+                Choraklik, Yarim yillik, Yillik hisobotlar hamda <strong>BSB topshiriqlar (1-ish, 2-ish... Jami va Foiz)</strong> tahlili.
+              </p>
+            </div>
 
-          <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight max-w-3xl mx-auto leading-tight">
-            eMaktab jurnallarini <span className="text-emerald-600">toza va rasmiy Excel</span> hisobotiga aylantiring
-          </h1>
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              <button
+                onClick={handleLoadSample}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+              >
+                <PlayCircle className="w-4 h-4 text-emerald-600" />
+                <span>Choraklik namuna</span>
+              </button>
 
-          <p className="mt-3 text-sm sm:text-base text-slate-600 max-w-2xl mx-auto">
-            Choraklik, Yarim yillik, Yillik hisobotlar hamda <strong>BSB topshiriqlar (1-ish, 2-ish... Jami va Foiz)</strong> tahlili. Zavuch (O‘IBDO‘) talab qiladigan format va imzo chiziqlari bilan tayyor .xlsx jadvalni 1 soniyada tayyorlaydi.
-          </p>
-
-          <div className="mt-5 flex items-center justify-center gap-3 flex-wrap">
-            <button
-              onClick={handleLoadSample}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors cursor-pointer shadow-sm"
-            >
-              <PlayCircle className="w-4 h-4 text-emerald-600" />
-              <span>Choraklik namuna (8-B Tarbiya)</span>
-            </button>
-
-            <button
-              onClick={handleLoadBsbSample}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold transition-colors cursor-pointer shadow-sm"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-amber-600" />
-              <span>7A Fizika 1-BSB tahlili namunasi</span>
-            </button>
+              <button
+                onClick={handleLoadBsbSample}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-amber-600" />
+                <span>7A Fizika 1-BSB namuna</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-5">
         {/* Step 1: Mode selector */}
         <ModeSelector mode={mode} onChangeMode={handleModeChange} />
 
-        {/* Step 2: Metadata form */}
+        {/* Step 2: Metadata form (Collapsible & 2026-2027 auto) */}
         <MetaForm meta={meta} onChangeMeta={handleUpdateMeta} mode={mode} />
 
-        {/* Step 3: File upload */}
-        <FileUploader
-          mode={mode}
-          files={files}
-          parsedDataList={parsedDataList}
-          onFileSelect={handleFileSelect}
-          onFileRemove={handleFileRemove}
-          isLoading={isGenerating}
-        />
-
-        {/* Step 4: Live Preview & Download */}
+        {/* Content based on Mode */}
         {mode === 'bsb_analysis' ? (
-          <BsbAnalysisView
-            meta={meta}
-            data={bsbData}
-            onUpdateData={setBsbData}
-            onShowToast={showToast}
-            isGenerating={isGenerating}
-          />
+          <>
+            {/* Step 3: Optional eMaktab file uploader for student list */}
+            <FileUploader
+              mode={mode}
+              files={files}
+              parsedDataList={parsedDataList}
+              onFileSelect={handleFileSelect}
+              onFileRemove={handleFileRemove}
+              isLoading={isGenerating}
+            />
+
+            {/* Step 4: BSB Task Constructor + Random button + Table + Download */}
+            <BsbAnalysisView
+              meta={meta}
+              data={bsbData}
+              onUpdateData={setBsbData}
+              onShowToast={showToast}
+              isGenerating={isGenerating}
+            />
+          </>
         ) : (
-          <ReportPreview
-            mode={mode}
-            meta={meta}
-            parsedDataList={parsedDataList}
-            onDownload={handleDownload}
-            onUpdateStudents={handleUpdateStudents}
-            onShowToast={showToast}
-            isGenerating={isGenerating}
-          />
+          <>
+            {/* Step 3: File upload for regular modes */}
+            <FileUploader
+              mode={mode}
+              files={files}
+              parsedDataList={parsedDataList}
+              onFileSelect={handleFileSelect}
+              onFileRemove={handleFileRemove}
+              isLoading={isGenerating}
+            />
+
+            {/* Step 4: Live Preview & Download */}
+            <ReportPreview
+              mode={mode}
+              meta={meta}
+              parsedDataList={parsedDataList}
+              onDownload={handleDownload}
+              onUpdateStudents={handleUpdateStudents}
+              onShowToast={showToast}
+              isGenerating={isGenerating}
+            />
+          </>
         )}
 
         {/* How to guide */}
@@ -359,7 +352,7 @@ export function App() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500">
+      <footer className="mt-auto border-t border-slate-200 bg-white py-5 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-900">eMaktab Hisobot Generator</span>
