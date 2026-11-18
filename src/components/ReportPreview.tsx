@@ -257,7 +257,20 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
     if (mode === 'quarter') {
       if (!activeData || students.length === 0) return;
       const updated = students.map(st => {
-        const bsb = 35 + Math.floor(Math.random() * 16); // 35-50
+        let bsb = 0;
+        let bsbScores: { label: string; maxBall: number; score: number | null }[] = [];
+        if (isMultiBsb) {
+          const bsb1 = 18 + Math.floor(Math.random() * 8); // 18-25
+          const bsb2 = 18 + Math.floor(Math.random() * 8); // 18-25
+          bsb = bsb1 + bsb2;
+          bsbScores = [
+            { label: '1-BSB(25)', maxBall: 25, score: bsb1 },
+            { label: '2-BSB(25)', maxBall: 25, score: bsb2 }
+          ];
+        } else {
+          bsb = 35 + Math.floor(Math.random() * 16); // 35-50
+          bsbScores = [{ label: 'BSB(50)', maxBall: 50, score: bsb }];
+        }
         const chsb = 25 + Math.floor(Math.random() * 16); // 25-40
         const fb = 6 + Math.floor(Math.random() * 5); // 6-10
         const total = bsb + chsb + fb;
@@ -269,7 +282,7 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
         return {
           ...st,
           totalBsb: bsb,
-          bsbScores: [{ label: 'BSB(50)', maxBall: 50, score: bsb }],
+          bsbScores,
           chsb,
           fb,
           totalScore: total,
@@ -481,10 +494,67 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
   };
 
   // Editing helpers for Mode 1 (Quarter)
+  const isMultiBsb = activeData && activeData.bsbStructure && activeData.bsbStructure.length > 1;
+
+  const handleToggleBsbCount = (count: 1 | 2) => {
+    if (!activeData) return;
+    let newStructure: { label: string; maxBall: number }[] = [];
+    if (count === 2) {
+      newStructure = [
+        { label: '1-BSB(25)', maxBall: 25 },
+        { label: '2-BSB(25)', maxBall: 25 }
+      ];
+    } else {
+      newStructure = [{ label: 'BSB(50)', maxBall: 50 }];
+    }
+
+    const updatedStudents = students.map(st => {
+      if (count === 2) {
+        const curTot = st.totalBsb ?? (st.bsbScores[0]?.score ?? 40);
+        const bsb1 = Math.min(25, Math.round(curTot / 2));
+        const bsb2 = Math.min(25, curTot - bsb1);
+        const scores = [
+          { label: '1-BSB(25)', maxBall: 25, score: bsb1 },
+          { label: '2-BSB(25)', maxBall: 25, score: bsb2 }
+        ];
+        return {
+          ...st,
+          bsbScores: scores,
+          totalBsb: bsb1 + bsb2
+        };
+      } else {
+        const curTot = st.totalBsb ?? ((st.bsbScores[0]?.score || 0) + (st.bsbScores[1]?.score || 0));
+        return {
+          ...st,
+          bsbScores: [{ label: 'BSB(50)', maxBall: 50, score: curTot }],
+          totalBsb: curTot
+        };
+      }
+    });
+
+    if (onUpdateAllDataList) {
+      const updated = [...parsedDataList];
+      updated[0] = {
+        ...activeData,
+        bsbStructure: newStructure,
+        students: updatedStudents
+      };
+      onUpdateAllDataList(updated);
+    } else {
+      onUpdateStudents(0, updatedStudents);
+    }
+
+    onShowToast?.(
+      count === 2 ? "Choraklik hisobot 2 ta BSB (25+25 ball) formatiga o‘tkazildi!" : "Choraklik hisobot 1 ta BSB (50 ball) formatiga o‘tkazildi!",
+      "success"
+    );
+  };
+
   const handleScoreChange = (
     studentIdx: number,
     field: 'fullName' | 'bsb' | 'chsb' | 'fb',
-    val: string
+    val: string,
+    bsbIndex: number = 0
   ) => {
     if (!activeData) return;
     const updated = students.map((st, i) => {
@@ -496,16 +566,34 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
       } else {
         const num = val === '' ? 0 : parseFloat(val) || 0;
         if (field === 'bsb') {
-          newSt.totalBsb = num;
-          if (newSt.bsbScores.length > 0) {
-            newSt.bsbScores[0].score = num;
+          if (isMultiBsb) {
+            const currentBsbScores = [...(newSt.bsbScores || [])];
+            while (currentBsbScores.length < 2) {
+              const idx = currentBsbScores.length;
+              currentBsbScores.push({
+                label: `${idx + 1}-BSB(25)`,
+                maxBall: 25,
+                score: 0
+              });
+            }
+            currentBsbScores[bsbIndex] = {
+              ...currentBsbScores[bsbIndex],
+              score: Math.min(25, Math.max(0, num))
+            };
+            newSt.bsbScores = currentBsbScores;
+            newSt.totalBsb = currentBsbScores.reduce((acc, curr) => acc + (curr.score || 0), 0);
           } else {
-            newSt.bsbScores = [{ label: 'BSB(50)', maxBall: 50, score: num }];
+            newSt.totalBsb = Math.min(50, Math.max(0, num));
+            if (newSt.bsbScores.length > 0) {
+              newSt.bsbScores[0] = { ...newSt.bsbScores[0], score: newSt.totalBsb };
+            } else {
+              newSt.bsbScores = [{ label: 'BSB(50)', maxBall: 50, score: newSt.totalBsb }];
+            }
           }
         } else if (field === 'chsb') {
-          newSt.chsb = num;
+          newSt.chsb = Math.min(40, Math.max(0, num));
         } else if (field === 'fb') {
-          newSt.fb = num;
+          newSt.fb = Math.min(10, Math.max(0, num));
         }
 
         const bsb = newSt.totalBsb ?? 0;
@@ -723,6 +811,35 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
 
         {/* Action Buttons: UNIVERSAL FOR ALL MODES */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Choraklik rejim uchun BSB soni sozlamasi (1 ta BSB yoki 2 ta BSB) */}
+          {mode === 'quarter' && activeData && (
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <span className="text-[11px] font-semibold text-slate-500 px-1.5">BSB:</span>
+              <button
+                type="button"
+                onClick={() => handleToggleBsbCount(1)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  !isMultiBsb
+                    ? 'bg-white text-emerald-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                1 ta BSB (50 ball)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleToggleBsbCount(2)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  isMultiBsb
+                    ? 'bg-white text-emerald-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                2 ta BSB (25+25 ball)
+              </button>
+            </div>
+          )}
+
           {/* Button 1: Tasodifiy (random) ballar kiritish */}
           <button
             onClick={handleGenerateRandomScores}
@@ -796,7 +913,14 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
                 <tr className="bg-slate-100 text-slate-900 font-serif">
                   <th className="border border-slate-400 p-2 text-center w-10">#</th>
                   <th className="border border-slate-400 p-2 text-left min-w-[200px]">F.I.Sh.</th>
-                  <th className="border border-slate-400 p-2 text-center">BSB(50)</th>
+                  {isMultiBsb ? (
+                    <>
+                      <th className="border border-slate-400 p-2 text-center bg-blue-50/50">1-BSB(25)</th>
+                      <th className="border border-slate-400 p-2 text-center bg-blue-50/50">2-BSB(25)</th>
+                    </>
+                  ) : (
+                    <th className="border border-slate-400 p-2 text-center">BSB(50)</th>
+                  )}
                   <th className="border border-slate-400 p-2 text-center">ChSB(40)</th>
                   <th className="border border-slate-400 p-2 text-center">FB(10)</th>
                   <th className="border border-slate-400 p-2 text-center font-bold">Jami ball(100)</th>
@@ -805,81 +929,122 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {students.map((st, i) => (
-                  <tr key={i} className="hover:bg-slate-50 transition-colors group">
-                    <td className="border border-slate-300 p-1.5 text-center text-slate-500 font-sans">{i + 1}</td>
-                    <td className="border border-slate-300 p-1">
-                      <input
-                        type="text"
-                        value={st.fullName}
-                        onChange={e => handleScoreChange(i, 'fullName', e.target.value)}
-                        className="w-full px-2 py-1 text-slate-900 font-medium bg-transparent border border-transparent hover:border-slate-300 focus:border-emerald-500 focus:bg-white rounded transition-colors focus:outline-none"
-                      />
-                    </td>
-                    <td className="border border-slate-300 p-1 text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        max="50"
-                        value={st.totalBsb ?? ''}
-                        onChange={e => handleScoreChange(i, 'bsb', e.target.value)}
-                        className="w-14 px-1 py-1 text-center font-semibold text-slate-800 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded focus:outline-none"
-                      />
-                    </td>
-                    <td className="border border-slate-300 p-1 text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        max="40"
-                        value={st.chsb ?? ''}
-                        onChange={e => handleScoreChange(i, 'chsb', e.target.value)}
-                        className="w-14 px-1 py-1 text-center font-semibold text-slate-800 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded focus:outline-none"
-                      />
-                    </td>
-                    <td className="border border-slate-300 p-1 text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        max="10"
-                        value={st.fb ?? ''}
-                        onChange={e => handleScoreChange(i, 'fb', e.target.value)}
-                        className="w-14 px-1 py-1 text-center font-semibold text-slate-800 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded focus:outline-none"
-                      />
-                    </td>
-                    <td className="border border-slate-300 p-1.5 text-center font-bold text-slate-900 font-sans">
-                      {st.totalScore ?? 0}
-                    </td>
-                    <td className="border border-slate-300 p-1.5 text-center font-bold text-slate-900 font-sans">
-                      <span className={`inline-block px-2.5 py-0.5 rounded text-xs ${
-                        st.quarterGrade === 5
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : st.quarterGrade === 4
-                          ? 'bg-blue-100 text-blue-800'
-                          : st.quarterGrade === 3
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {st.quarterGrade ?? 2}
-                      </span>
-                    </td>
-                    <td className="border border-slate-300 p-1 text-center print:hidden">
-                      <button
-                        onClick={() => handleDeleteStudent(i)}
-                        className="text-slate-300 hover:text-rose-600 p-1 rounded cursor-pointer transition-colors"
-                        title="O‘quvchini o‘chirish"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {students.map((st, i) => {
+                  const bsb1 = isMultiBsb ? (st.bsbScores[0]?.score ?? 0) : (st.totalBsb ?? 0);
+                  const bsb2 = isMultiBsb ? (st.bsbScores[1]?.score ?? 0) : 0;
+
+                  return (
+                    <tr key={i} className="hover:bg-slate-50 transition-colors group">
+                      <td className="border border-slate-300 p-1.5 text-center text-slate-500 font-sans">{i + 1}</td>
+                      <td className="border border-slate-300 p-1">
+                        <input
+                          type="text"
+                          value={st.fullName}
+                          onChange={e => handleScoreChange(i, 'fullName', e.target.value)}
+                          className="w-full px-2 py-1 text-slate-900 font-medium bg-transparent border border-transparent hover:border-slate-300 focus:border-emerald-500 focus:bg-white rounded transition-colors focus:outline-none"
+                        />
+                      </td>
+                      {isMultiBsb ? (
+                        <>
+                          <td className="border border-slate-300 p-1 text-center bg-blue-50/20">
+                            <input
+                              type="number"
+                              min="0"
+                              max="25"
+                              value={bsb1 || ''}
+                              onChange={e => handleScoreChange(i, 'bsb', e.target.value, 0)}
+                              className="w-12 px-1 py-1 text-center font-semibold text-slate-800 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded focus:outline-none"
+                            />
+                          </td>
+                          <td className="border border-slate-300 p-1 text-center bg-blue-50/20">
+                            <input
+                              type="number"
+                              min="0"
+                              max="25"
+                              value={bsb2 || ''}
+                              onChange={e => handleScoreChange(i, 'bsb', e.target.value, 1)}
+                              className="w-12 px-1 py-1 text-center font-semibold text-slate-800 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded focus:outline-none"
+                            />
+                          </td>
+                        </>
+                      ) : (
+                        <td className="border border-slate-300 p-1 text-center">
+                          <input
+                            type="number"
+                            min="0"
+                            max="50"
+                            value={st.totalBsb ?? ''}
+                            onChange={e => handleScoreChange(i, 'bsb', e.target.value)}
+                            className="w-14 px-1 py-1 text-center font-semibold text-slate-800 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded focus:outline-none"
+                          />
+                        </td>
+                      )}
+                      <td className="border border-slate-300 p-1 text-center">
+                        <input
+                          type="number"
+                          min="0"
+                          max="40"
+                          value={st.chsb ?? ''}
+                          onChange={e => handleScoreChange(i, 'chsb', e.target.value)}
+                          className="w-14 px-1 py-1 text-center font-semibold text-slate-800 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded focus:outline-none"
+                        />
+                      </td>
+                      <td className="border border-slate-300 p-1 text-center">
+                        <input
+                          type="number"
+                          min="0"
+                          max="10"
+                          value={st.fb ?? ''}
+                          onChange={e => handleScoreChange(i, 'fb', e.target.value)}
+                          className="w-14 px-1 py-1 text-center font-semibold text-slate-800 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded focus:outline-none"
+                        />
+                      </td>
+                      <td className="border border-slate-300 p-1.5 text-center font-bold text-slate-900 font-sans">
+                        {st.totalScore ?? 0}
+                      </td>
+                      <td className="border border-slate-300 p-1.5 text-center font-bold text-slate-900 font-sans">
+                        <span className={`inline-block px-2.5 py-0.5 rounded text-xs ${
+                          st.quarterGrade === 5
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : st.quarterGrade === 4
+                            ? 'bg-blue-100 text-blue-800'
+                            : st.quarterGrade === 3
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {st.quarterGrade ?? 2}
+                        </span>
+                      </td>
+                      <td className="border border-slate-300 p-1 text-center print:hidden">
+                        <button
+                          onClick={() => handleDeleteStudent(i)}
+                          className="text-slate-300 hover:text-rose-600 p-1 rounded cursor-pointer transition-colors"
+                          title="O‘quvchini o‘chirish"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
 
                 {/* Summary rows */}
                 <tr className="bg-slate-100 font-bold font-sans">
                   <td colSpan={2} className="border border-slate-400 p-2 text-left font-serif">Jami:</td>
-                  <td className="border border-slate-400 p-2 text-center">
-                    {students.reduce((acc, s) => acc + (s.totalBsb || 0), 0)}
-                  </td>
+                  {isMultiBsb ? (
+                    <>
+                      <td className="border border-slate-400 p-2 text-center">
+                        {students.reduce((acc, s) => acc + (s.bsbScores[0]?.score || 0), 0)}
+                      </td>
+                      <td className="border border-slate-400 p-2 text-center">
+                        {students.reduce((acc, s) => acc + (s.bsbScores[1]?.score || 0), 0)}
+                      </td>
+                    </>
+                  ) : (
+                    <td className="border border-slate-400 p-2 text-center">
+                      {students.reduce((acc, s) => acc + (s.totalBsb || 0), 0)}
+                    </td>
+                  )}
                   <td className="border border-slate-400 p-2 text-center">
                     {students.reduce((acc, s) => acc + (s.chsb || 0), 0)}
                   </td>
@@ -897,9 +1062,20 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
 
                 <tr className="bg-slate-50 font-bold font-sans">
                   <td colSpan={2} className="border border-slate-400 p-2 text-left font-serif">O‘rtacha:</td>
-                  <td className="border border-slate-400 p-2 text-center">
-                    {studentsCount > 0 ? (students.reduce((acc, s) => acc + (s.totalBsb || 0), 0) / studentsCount).toFixed(1) : 0}
-                  </td>
+                  {isMultiBsb ? (
+                    <>
+                      <td className="border border-slate-400 p-2 text-center">
+                        {studentsCount > 0 ? (students.reduce((acc, s) => acc + (s.bsbScores[0]?.score || 0), 0) / studentsCount).toFixed(1) : 0}
+                      </td>
+                      <td className="border border-slate-400 p-2 text-center">
+                        {studentsCount > 0 ? (students.reduce((acc, s) => acc + (s.bsbScores[1]?.score || 0), 0) / studentsCount).toFixed(1) : 0}
+                      </td>
+                    </>
+                  ) : (
+                    <td className="border border-slate-400 p-2 text-center">
+                      {studentsCount > 0 ? (students.reduce((acc, s) => acc + (s.totalBsb || 0), 0) / studentsCount).toFixed(1) : 0}
+                    </td>
+                  )}
                   <td className="border border-slate-400 p-2 text-center">
                     {studentsCount > 0 ? (students.reduce((acc, s) => acc + (s.chsb || 0), 0) / studentsCount).toFixed(1) : 0}
                   </td>
