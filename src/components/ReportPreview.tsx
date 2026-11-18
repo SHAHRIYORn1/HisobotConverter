@@ -323,12 +323,20 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
       const newList = [...parsedDataList];
       validSlots.forEach(({ p, idx }) => {
         const updated = p!.students.map(st => {
-          const total = 65 + Math.floor(Math.random() * 34); // 65-98
-          let grade = 3;
+          const bsb = 30 + Math.floor(Math.random() * 20); // 30-49
+          const fb = 7 + Math.floor(Math.random() * 4);    // 7-10
+          const chsb = 24 + Math.floor(Math.random() * 16); // 24-39
+          const total = bsb + fb + chsb;
+          let grade = 2;
           if (total >= 86) grade = 5;
           else if (total >= 71) grade = 4;
+          else if (total >= 56) grade = 3;
           return {
             ...st,
+            totalBsb: bsb,
+            bsbScores: [{ label: 'BSB(50)', maxBall: 50, score: bsb }],
+            fb,
+            chsb,
             totalScore: total,
             quarterGrade: grade
           };
@@ -572,7 +580,7 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
   const handleAnnualChange = (
     studentIdx: number,
     slotIdx: number,
-    field: 'fullName' | 'totalScore',
+    field: 'fullName' | 'bsb' | 'fb' | 'chsb' | 'totalScore',
     val: string
   ) => {
     const validSlots = parsedDataList.map((p, idx) => ({ p, idx })).filter(item => item.p !== null);
@@ -588,22 +596,43 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
           newList[idx] = { ...p!, students: updated };
         }
       });
-    } else {
+    } else if (newList[slotIdx] && newList[slotIdx]!.students[studentIdx]) {
+      const st = newList[slotIdx]!.students[studentIdx];
       const num = val === '' ? 0 : parseFloat(val) || 0;
-      if (newList[slotIdx] && newList[slotIdx]!.students[studentIdx]) {
-        const updated = [...newList[slotIdx]!.students];
-        let grade = 2;
-        if (num >= 86) grade = 5;
-        else if (num >= 71) grade = 4;
-        else if (num >= 56) grade = 3;
+      let bsb = st.totalBsb ?? (st.bsbScores[0]?.score ?? 0);
+      let fb = st.fb ?? 0;
+      let chsb = st.chsb ?? 0;
+      let total = st.totalScore ?? 0;
 
-        updated[studentIdx] = {
-          ...updated[studentIdx],
-          totalScore: num,
-          quarterGrade: grade
-        };
-        newList[slotIdx] = { ...newList[slotIdx]!, students: updated };
+      if (field === 'bsb') {
+        bsb = num;
+        total = bsb + fb + chsb;
+      } else if (field === 'fb') {
+        fb = num;
+        total = bsb + fb + chsb;
+      } else if (field === 'chsb') {
+        chsb = num;
+        total = bsb + fb + chsb;
+      } else if (field === 'totalScore') {
+        total = num;
       }
+
+      let grade = 2;
+      if (total >= 86) grade = 5;
+      else if (total >= 71) grade = 4;
+      else if (total >= 56) grade = 3;
+
+      const updated = [...newList[slotIdx]!.students];
+      updated[studentIdx] = {
+        ...st,
+        totalBsb: bsb,
+        bsbScores: [{ label: 'BSB(50)', maxBall: 50, score: bsb }],
+        fb,
+        chsb,
+        totalScore: total,
+        quarterGrade: grade
+      };
+      newList[slotIdx] = { ...newList[slotIdx]!, students: updated };
     }
 
     if (onUpdateAllDataList) {
@@ -1024,140 +1053,332 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
           {/* Table preview for Mode 3: To'liq Yillik hisobot               */}
           {/* ============================================================= */}
           {mode === 'annual' && parsedDataList[0] && (
-            <table className="w-full border-collapse border border-slate-400 text-xs">
-              <thead>
-                <tr className="bg-slate-100 text-slate-900 font-serif">
-                  <th className="border border-slate-400 p-2 text-center w-10">#</th>
-                  <th className="border border-slate-400 p-2 text-left min-w-[200px]">F.I.Sh.</th>
-                  <th className="border border-slate-400 p-2 text-center">1-Chorak</th>
-                  <th className="border border-slate-400 p-2 text-center">2-Chorak</th>
-                  <th className="border border-slate-400 p-2 text-center">3-Chorak</th>
-                  <th className="border border-slate-400 p-2 text-center">4-Chorak</th>
-                  <th className="border border-slate-400 p-2 text-center font-bold">Yillik</th>
-                  <th className="border border-slate-400 p-2 text-center font-bold">Yakuniy</th>
-                  <th className="border border-slate-400 p-2 text-center font-bold">O‘rtacha ball</th>
-                  <th className="border border-slate-400 p-2 text-center font-bold">Dinamika</th>
-                  <th className="border border-slate-400 p-2 text-center w-10 print:hidden">Amal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {parsedDataList[0].students.map((st, idx) => {
-                  const s1 = parsedDataList[0]?.students[idx];
-                  const s2 = parsedDataList[1]?.students[idx];
-                  const s3 = parsedDataList[2]?.students[idx];
-                  const s4 = parsedDataList[3]?.students[idx];
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse border border-slate-400 text-xs whitespace-nowrap">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-900 font-serif">
+                    <th className="border border-slate-400 p-2 text-center w-8">#</th>
+                    <th className="border border-slate-400 p-2 text-left min-w-[200px]">F.I.Sh.</th>
 
-                  const g1 = s1?.quarterGrade || 0;
-                  const g2 = s2?.quarterGrade || 0;
-                  const g3 = s3?.quarterGrade || 0;
-                  const g4 = s4?.quarterGrade || 0;
+                    {/* 1-Chorak */}
+                    <th className="border border-slate-400 p-1.5 text-center bg-blue-50/50">1-BSB(50)</th>
+                    <th className="border border-slate-400 p-1.5 text-center bg-blue-50/50">FB(10)</th>
+                    <th className="border border-slate-400 p-1.5 text-center bg-blue-50/50">1-ChSB(40)</th>
+                    <th className="border border-slate-400 p-1.5 text-center font-bold bg-blue-100/50">Jami ball(100)</th>
+                    <th className="border border-slate-400 p-1.5 text-center font-bold bg-blue-100/50">1-Chorak baho</th>
 
-                  const validGrades = [g1, g2, g3, g4].filter(g => g > 0);
-                  const annualGrade = validGrades.length > 0 ? Math.round(validGrades.reduce((a, b) => a + b, 0) / validGrades.length) : 2;
+                    {/* 2-Chorak */}
+                    <th className="border border-slate-400 p-1.5 text-center bg-emerald-50/50">2-BSB(50)</th>
+                    <th className="border border-slate-400 p-1.5 text-center bg-emerald-50/50">FB(10)</th>
+                    <th className="border border-slate-400 p-1.5 text-center bg-emerald-50/50">2-ChSB(40)</th>
+                    <th className="border border-slate-400 p-1.5 text-center font-bold bg-emerald-100/50">Jami ball(100)</th>
+                    <th className="border border-slate-400 p-1.5 text-center font-bold bg-emerald-100/50">2-Chorak baho</th>
 
-                  const t1 = s1?.totalScore || 0;
-                  const t2 = s2?.totalScore || 0;
-                  const t3 = s3?.totalScore || 0;
-                  const t4 = s4?.totalScore || 0;
-                  const validTotals = [t1, t2, t3, t4].filter(t => t > 0);
-                  const avgScore = validTotals.length > 0 ? (validTotals.reduce((a, b) => a + b, 0) / validTotals.length).toFixed(1) : '0';
+                    {/* 3-Chorak */}
+                    <th className="border border-slate-400 p-1.5 text-center bg-amber-50/50">3-BSB(50)</th>
+                    <th className="border border-slate-400 p-1.5 text-center bg-amber-50/50">FB(10)</th>
+                    <th className="border border-slate-400 p-1.5 text-center bg-amber-50/50">3-ChSB(40)</th>
+                    <th className="border border-slate-400 p-1.5 text-center font-bold bg-amber-100/50">Jami ball(100)</th>
+                    <th className="border border-slate-400 p-1.5 text-center font-bold bg-amber-100/50">3-Chorak baho</th>
 
-                  const lastScore = validTotals.length > 0 ? validTotals[validTotals.length - 1] : 0;
-                  const firstScore = validTotals.length > 0 ? validTotals[0] : 0;
-                  const diff = lastScore - firstScore;
-                  let trend = "o‘zgarmagan";
-                  let trendColor = "text-slate-600 bg-slate-50";
-                  if (diff > 0) {
-                    trend = `oshgan (+${diff})`;
-                    trendColor = "text-emerald-700 bg-emerald-50";
-                  } else if (diff < 0) {
-                    trend = `kamaygan (${diff})`;
-                    trendColor = "text-rose-700 bg-rose-50";
-                  }
+                    {/* 4-Chorak */}
+                    <th className="border border-slate-400 p-1.5 text-center bg-purple-50/50">4-BSB(50)</th>
+                    <th className="border border-slate-400 p-1.5 text-center bg-purple-50/50">FB(10)</th>
+                    <th className="border border-slate-400 p-1.5 text-center bg-purple-50/50">4-ChSB(40)</th>
+                    <th className="border border-slate-400 p-1.5 text-center font-bold bg-purple-100/50">Jami ball(100)</th>
+                    <th className="border border-slate-400 p-1.5 text-center font-bold bg-purple-100/50">4-Chorak baho</th>
 
-                  return (
-                    <tr key={idx} className="hover:bg-slate-50 transition-colors group">
-                      <td className="border border-slate-300 p-1.5 text-center font-sans text-slate-500">{idx + 1}</td>
-                      <td className="border border-slate-300 p-1">
-                        <input
-                          type="text"
-                          value={st.fullName}
-                          onChange={e => handleAnnualChange(idx, 0, 'fullName', e.target.value)}
-                          className="w-full px-2 py-1 text-slate-900 font-medium bg-transparent border border-transparent hover:border-slate-300 focus:border-emerald-500 focus:bg-white rounded transition-colors focus:outline-none"
-                        />
-                      </td>
-                      <td className="border border-slate-300 p-1 text-center">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={t1 || ''}
-                          onChange={e => handleAnnualChange(idx, 0, 'totalScore', e.target.value)}
-                          className="w-12 px-1 py-1 text-center font-semibold text-slate-800 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded focus:outline-none"
-                        />
-                      </td>
-                      <td className="border border-slate-300 p-1 text-center">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={t2 || ''}
-                          onChange={e => handleAnnualChange(idx, 1, 'totalScore', e.target.value)}
-                          className="w-12 px-1 py-1 text-center font-semibold text-slate-800 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded focus:outline-none"
-                        />
-                      </td>
-                      <td className="border border-slate-300 p-1 text-center">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={t3 || ''}
-                          onChange={e => handleAnnualChange(idx, 2, 'totalScore', e.target.value)}
-                          className="w-12 px-1 py-1 text-center font-semibold text-slate-800 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded focus:outline-none"
-                        />
-                      </td>
-                      <td className="border border-slate-300 p-1 text-center">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={t4 || ''}
-                          onChange={e => handleAnnualChange(idx, 3, 'totalScore', e.target.value)}
-                          className="w-12 px-1 py-1 text-center font-semibold text-slate-800 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-500 rounded focus:outline-none"
-                        />
-                      </td>
-                      <td className="border border-slate-300 p-1.5 text-center font-bold text-slate-900 font-sans">
-                        <span className={`inline-block px-2.5 py-0.5 rounded text-xs ${
-                          annualGrade === 5 ? 'bg-emerald-100 text-emerald-800' : annualGrade === 4 ? 'bg-blue-100 text-blue-800' : annualGrade === 3 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
-                        }`}>
+                    {/* Yillik, Imtihon, Yakuniy */}
+                    <th className="border border-slate-400 p-1.5 text-center font-bold bg-slate-200">Yillik</th>
+                    <th className="border border-slate-400 p-1.5 text-center font-bold bg-slate-200">Imtihon</th>
+                    <th className="border border-slate-400 p-1.5 text-center font-bold bg-slate-200">Yakuniy baho</th>
+
+                    {/* Choraklar ballari */}
+                    <th className="border border-slate-400 p-1.5 text-center">1-chorak</th>
+                    <th className="border border-slate-400 p-1.5 text-center">2-chorak</th>
+                    <th className="border border-slate-400 p-1.5 text-center">3-chorak</th>
+                    <th className="border border-slate-400 p-1.5 text-center">4-chorak</th>
+
+                    {/* O'rtacha va dinamika */}
+                    <th className="border border-slate-400 p-1.5 text-center font-bold bg-emerald-50">Jami o‘rtacha</th>
+                    <th className="border border-slate-400 p-1.5 text-center font-bold bg-slate-50">O‘sish kamayish</th>
+                    <th className="border border-slate-400 p-1.5 text-center w-10 print:hidden">Amal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parsedDataList[0].students.map((st, idx) => {
+                    const s1 = parsedDataList[0]?.students[idx];
+                    const s2 = parsedDataList[1]?.students[idx];
+                    const s3 = parsedDataList[2]?.students[idx];
+                    const s4 = parsedDataList[3]?.students[idx];
+
+                    // Q1
+                    const bsb1 = s1?.totalBsb ?? (s1?.bsbScores[0]?.score ?? 0);
+                    const fb1 = s1?.fb ?? 0;
+                    const chsb1 = s1?.chsb ?? 0;
+                    const tot1 = s1?.totalScore ?? (bsb1 + fb1 + chsb1);
+                    const g1 = s1?.quarterGrade ?? (tot1 >= 86 ? 5 : tot1 >= 71 ? 4 : tot1 >= 56 ? 3 : 2);
+
+                    // Q2
+                    const bsb2 = s2?.totalBsb ?? (s2?.bsbScores[0]?.score ?? 0);
+                    const fb2 = s2?.fb ?? 0;
+                    const chsb2 = s2?.chsb ?? 0;
+                    const tot2 = s2?.totalScore ?? (bsb2 + fb2 + chsb2);
+                    const g2 = s2?.quarterGrade ?? (tot2 >= 86 ? 5 : tot2 >= 71 ? 4 : tot2 >= 56 ? 3 : 2);
+
+                    // Q3
+                    const bsb3 = s3?.totalBsb ?? (s3?.bsbScores[0]?.score ?? 0);
+                    const fb3 = s3?.fb ?? 0;
+                    const chsb3 = s3?.chsb ?? 0;
+                    const tot3 = s3?.totalScore ?? (bsb3 + fb3 + chsb3);
+                    const g3 = s3?.quarterGrade ?? (tot3 >= 86 ? 5 : tot3 >= 71 ? 4 : tot3 >= 56 ? 3 : 2);
+
+                    // Q4
+                    const bsb4 = s4?.totalBsb ?? (s4?.bsbScores[0]?.score ?? 0);
+                    const fb4 = s4?.fb ?? 0;
+                    const chsb4 = s4?.chsb ?? 0;
+                    const tot4 = s4?.totalScore ?? (bsb4 + fb4 + chsb4);
+                    const g4 = s4?.quarterGrade ?? (tot4 >= 86 ? 5 : tot4 >= 71 ? 4 : tot4 >= 56 ? 3 : 2);
+
+                    const validGrades = [g1, g2, g3, g4].filter(g => g > 0);
+                    const annualGrade = validGrades.length > 0 ? Math.round(validGrades.reduce((a, b) => a + b, 0) / validGrades.length) : 2;
+
+                    const validTotals = [tot1, tot2, tot3, tot4].filter(t => t > 0);
+                    const avgScore = validTotals.length > 0 ? (validTotals.reduce((a, b) => a + b, 0) / validTotals.length).toFixed(2) : '0';
+                    const avgNum = parseFloat(avgScore) || 0;
+
+                    // O'sish kamayish: -(avg - tot1)
+                    const diff = tot1 > 0 ? (-(avgNum - tot1)).toFixed(2) : '0';
+                    const diffNum = parseFloat(diff);
+                    const trend = diffNum >= 0 ? "o‘sgan" : "kamaygan";
+                    const trendColor = diffNum >= 0 ? "text-emerald-700 bg-emerald-50" : "text-rose-700 bg-rose-50";
+
+                    return (
+                      <tr key={idx} className="hover:bg-slate-50 transition-colors group">
+                        <td className="border border-slate-300 p-1.5 text-center font-sans text-slate-500">{idx + 1}</td>
+                        <td className="border border-slate-300 p-1">
+                          <input
+                            type="text"
+                            value={st.fullName}
+                            onChange={e => handleAnnualChange(idx, 0, 'fullName', e.target.value)}
+                            className="w-full px-2 py-1 text-slate-900 font-medium bg-transparent border border-transparent hover:border-slate-300 focus:border-emerald-500 focus:bg-white rounded transition-colors focus:outline-none"
+                          />
+                        </td>
+
+                        {/* 1-Chorak */}
+                        <td className="border border-slate-300 p-1 text-center bg-blue-50/20">
+                          <input
+                            type="number"
+                            min="0"
+                            max="50"
+                            value={bsb1 || ''}
+                            onChange={e => handleAnnualChange(idx, 0, 'bsb', e.target.value)}
+                            className="w-11 px-1 py-1 text-center text-slate-800 bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-emerald-500 rounded focus:outline-none"
+                          />
+                        </td>
+                        <td className="border border-slate-300 p-1 text-center bg-blue-50/20">
+                          <input
+                            type="number"
+                            min="0"
+                            max="10"
+                            value={fb1 || ''}
+                            onChange={e => handleAnnualChange(idx, 0, 'fb', e.target.value)}
+                            className="w-9 px-1 py-1 text-center text-slate-800 bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-emerald-500 rounded focus:outline-none"
+                          />
+                        </td>
+                        <td className="border border-slate-300 p-1 text-center bg-blue-50/20">
+                          <input
+                            type="number"
+                            min="0"
+                            max="40"
+                            value={chsb1 || ''}
+                            onChange={e => handleAnnualChange(idx, 0, 'chsb', e.target.value)}
+                            className="w-11 px-1 py-1 text-center text-slate-800 bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-emerald-500 rounded focus:outline-none"
+                          />
+                        </td>
+                        <td className="border border-slate-300 p-1.5 text-center font-bold text-slate-800 bg-blue-50/40 font-mono">
+                          {tot1}
+                        </td>
+                        <td className="border border-slate-300 p-1.5 text-center font-bold bg-blue-50/40">
+                          <span className={`inline-block px-2 py-0.5 rounded text-xs ${
+                            g1 === 5 ? 'bg-emerald-100 text-emerald-800' : g1 === 4 ? 'bg-blue-100 text-blue-800' : g1 === 3 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {g1}
+                          </span>
+                        </td>
+
+                        {/* 2-Chorak */}
+                        <td className="border border-slate-300 p-1 text-center bg-emerald-50/20">
+                          <input
+                            type="number"
+                            min="0"
+                            max="50"
+                            value={bsb2 || ''}
+                            onChange={e => handleAnnualChange(idx, 1, 'bsb', e.target.value)}
+                            className="w-11 px-1 py-1 text-center text-slate-800 bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-emerald-500 rounded focus:outline-none"
+                          />
+                        </td>
+                        <td className="border border-slate-300 p-1 text-center bg-emerald-50/20">
+                          <input
+                            type="number"
+                            min="0"
+                            max="10"
+                            value={fb2 || ''}
+                            onChange={e => handleAnnualChange(idx, 1, 'fb', e.target.value)}
+                            className="w-9 px-1 py-1 text-center text-slate-800 bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-emerald-500 rounded focus:outline-none"
+                          />
+                        </td>
+                        <td className="border border-slate-300 p-1 text-center bg-emerald-50/20">
+                          <input
+                            type="number"
+                            min="0"
+                            max="40"
+                            value={chsb2 || ''}
+                            onChange={e => handleAnnualChange(idx, 1, 'chsb', e.target.value)}
+                            className="w-11 px-1 py-1 text-center text-slate-800 bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-emerald-500 rounded focus:outline-none"
+                          />
+                        </td>
+                        <td className="border border-slate-300 p-1.5 text-center font-bold text-slate-800 bg-emerald-50/40 font-mono">
+                          {tot2}
+                        </td>
+                        <td className="border border-slate-300 p-1.5 text-center font-bold bg-emerald-50/40">
+                          <span className={`inline-block px-2 py-0.5 rounded text-xs ${
+                            g2 === 5 ? 'bg-emerald-100 text-emerald-800' : g2 === 4 ? 'bg-blue-100 text-blue-800' : g2 === 3 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {g2}
+                          </span>
+                        </td>
+
+                        {/* 3-Chorak */}
+                        <td className="border border-slate-300 p-1 text-center bg-amber-50/20">
+                          <input
+                            type="number"
+                            min="0"
+                            max="50"
+                            value={bsb3 || ''}
+                            onChange={e => handleAnnualChange(idx, 2, 'bsb', e.target.value)}
+                            className="w-11 px-1 py-1 text-center text-slate-800 bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-emerald-500 rounded focus:outline-none"
+                          />
+                        </td>
+                        <td className="border border-slate-300 p-1 text-center bg-amber-50/20">
+                          <input
+                            type="number"
+                            min="0"
+                            max="10"
+                            value={fb3 || ''}
+                            onChange={e => handleAnnualChange(idx, 2, 'fb', e.target.value)}
+                            className="w-9 px-1 py-1 text-center text-slate-800 bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-emerald-500 rounded focus:outline-none"
+                          />
+                        </td>
+                        <td className="border border-slate-300 p-1 text-center bg-amber-50/20">
+                          <input
+                            type="number"
+                            min="0"
+                            max="40"
+                            value={chsb3 || ''}
+                            onChange={e => handleAnnualChange(idx, 2, 'chsb', e.target.value)}
+                            className="w-11 px-1 py-1 text-center text-slate-800 bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-emerald-500 rounded focus:outline-none"
+                          />
+                        </td>
+                        <td className="border border-slate-300 p-1.5 text-center font-bold text-slate-800 bg-amber-50/40 font-mono">
+                          {tot3}
+                        </td>
+                        <td className="border border-slate-300 p-1.5 text-center font-bold bg-amber-50/40">
+                          <span className={`inline-block px-2 py-0.5 rounded text-xs ${
+                            g3 === 5 ? 'bg-emerald-100 text-emerald-800' : g3 === 4 ? 'bg-blue-100 text-blue-800' : g3 === 3 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {g3}
+                          </span>
+                        </td>
+
+                        {/* 4-Chorak */}
+                        <td className="border border-slate-300 p-1 text-center bg-purple-50/20">
+                          <input
+                            type="number"
+                            min="0"
+                            max="50"
+                            value={bsb4 || ''}
+                            onChange={e => handleAnnualChange(idx, 3, 'bsb', e.target.value)}
+                            className="w-11 px-1 py-1 text-center text-slate-800 bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-emerald-500 rounded focus:outline-none"
+                          />
+                        </td>
+                        <td className="border border-slate-300 p-1 text-center bg-purple-50/20">
+                          <input
+                            type="number"
+                            min="0"
+                            max="10"
+                            value={fb4 || ''}
+                            onChange={e => handleAnnualChange(idx, 3, 'fb', e.target.value)}
+                            className="w-9 px-1 py-1 text-center text-slate-800 bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-emerald-500 rounded focus:outline-none"
+                          />
+                        </td>
+                        <td className="border border-slate-300 p-1 text-center bg-purple-50/20">
+                          <input
+                            type="number"
+                            min="0"
+                            max="40"
+                            value={chsb4 || ''}
+                            onChange={e => handleAnnualChange(idx, 3, 'chsb', e.target.value)}
+                            className="w-11 px-1 py-1 text-center text-slate-800 bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-slate-300 focus:border-emerald-500 rounded focus:outline-none"
+                          />
+                        </td>
+                        <td className="border border-slate-300 p-1.5 text-center font-bold text-slate-800 bg-purple-50/40 font-mono">
+                          {tot4}
+                        </td>
+                        <td className="border border-slate-300 p-1.5 text-center font-bold bg-purple-50/40">
+                          <span className={`inline-block px-2 py-0.5 rounded text-xs ${
+                            g4 === 5 ? 'bg-emerald-100 text-emerald-800' : g4 === 4 ? 'bg-blue-100 text-blue-800' : g4 === 3 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {g4}
+                          </span>
+                        </td>
+
+                        {/* Yillik, Imtihon, Yakuniy */}
+                        <td className="border border-slate-300 p-1.5 text-center font-bold text-slate-900 bg-slate-100 font-sans">
+                          <span className={`inline-block px-2.5 py-0.5 rounded text-xs ${
+                            annualGrade === 5 ? 'bg-emerald-100 text-emerald-800' : annualGrade === 4 ? 'bg-blue-100 text-blue-800' : annualGrade === 3 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {annualGrade}
+                          </span>
+                        </td>
+                        <td className="border border-slate-300 p-1.5 text-center font-bold text-slate-600 bg-slate-100 font-sans">
+                          OZ
+                        </td>
+                        <td className="border border-slate-300 p-1.5 text-center font-bold text-slate-900 bg-slate-100 font-sans">
                           {annualGrade}
-                        </span>
-                      </td>
-                      <td className="border border-slate-300 p-1.5 text-center font-bold text-slate-900 font-sans">
-                        {annualGrade}
-                      </td>
-                      <td className="border border-slate-300 p-1.5 text-center font-mono font-bold text-slate-800">
-                        {avgScore}
-                      </td>
-                      <td className="border border-slate-300 p-1.5 text-center font-sans">
-                        <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${trendColor}`}>
-                          {trend}
-                        </span>
-                      </td>
-                      <td className="border border-slate-300 p-1 text-center print:hidden">
-                        <button
-                          onClick={() => handleDeleteStudent(idx)}
-                          className="text-slate-300 hover:text-rose-600 p-1 rounded cursor-pointer transition-colors"
-                          title="O‘quvchini o‘chirish"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        </td>
+
+                        {/* 1, 2, 3, 4 chorak ballari */}
+                        <td className="border border-slate-300 p-1.5 text-center font-mono text-slate-700">{tot1}</td>
+                        <td className="border border-slate-300 p-1.5 text-center font-mono text-slate-700">{tot2}</td>
+                        <td className="border border-slate-300 p-1.5 text-center font-mono text-slate-700">{tot3}</td>
+                        <td className="border border-slate-300 p-1.5 text-center font-mono text-slate-700">{tot4}</td>
+
+                        {/* Jami o'rtacha & Dinamika */}
+                        <td className="border border-slate-300 p-1.5 text-center font-mono font-bold text-slate-900 bg-emerald-50/50">
+                          {avgScore}
+                        </td>
+                        <td className="border border-slate-300 p-1.5 text-center font-sans">
+                          <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${trendColor}`}>
+                            {trend} ({diff})
+                          </span>
+                        </td>
+
+                        <td className="border border-slate-300 p-1 text-center print:hidden">
+                          <button
+                            onClick={() => handleDeleteStudent(idx)}
+                            className="text-slate-300 hover:text-rose-600 p-1 rounded cursor-pointer transition-colors"
+                            title="O‘quvchini o‘chirish"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
 
           {/* Bottom Statistics & Signatures (Exactly as in User Screenshot 2) */}

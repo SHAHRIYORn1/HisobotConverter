@@ -517,8 +517,9 @@ export async function generateAnnualExcel(
     const c2Col = colIdx++; ws.getColumn(c2Col).width = 9;
     const c3Col = colIdx++; ws.getColumn(c3Col).width = 9;
     const c4Col = colIdx++; ws.getColumn(c4Col).width = 9;
-    ws.getColumn(colIdx++).width = 12; // Jami o'rtacha
-    ws.getColumn(colIdx++).width = 14; // O'sish kamayish
+    const avgCol = colIdx++; ws.getColumn(avgCol).width = 12; // Jami o'rtacha
+    ws.getColumn(colIdx++).width = 14; // O'sish kamayish (matn)
+    ws.getColumn(colIdx++).width = 9;  // Farq (qiymat)
 
     const totalCols = colIdx - 1;
     const lastColLetter = ws.getColumn(totalCols).letter;
@@ -535,7 +536,7 @@ export async function generateAnnualExcel(
     for (let q = 1; q <= 4; q++) {
       headers.push(`${q}-BSB(50)`, 'FB(10)', `${q}-ChSB(40)`, 'Jami ball(100)', `${q}-Chorak baho`);
     }
-    headers.push('Yillik', 'Imtihon', 'Yakuniy baho', '1-chorak', '2-chorak', '3-chorak', '4-chorak', "Jami  o'rtacha", "O 'sish kamayish");
+    headers.push('Yillik', 'Imtihon', 'Yakuniy baho', '1-chorak', '2-chorak', '3-chorak', '4-chorak', "Jami  o'rtacha", "O 'sish kamayish", "");
 
     const headerRow = ws.getRow(2);
     headers.forEach((h, i) => {
@@ -559,6 +560,7 @@ export async function generateAnnualExcel(
     const c2Letter = ws.getColumn(c2Col).letter;
     const c3Letter = ws.getColumn(c3Col).letter;
     const c4Letter = ws.getColumn(c4Col).letter;
+    const avgLetter = ws.getColumn(avgCol).letter;
 
     baseList.forEach((st, idx) => {
       const row = ws.getRow(r);
@@ -568,7 +570,7 @@ export async function generateAnnualExcel(
       row.getCell(c++).value = st.fullName;
 
       const qGrades: (number | null)[] = [];
-      const gradeCellLetters: string[] = [];
+      const totalCellLetters: string[] = [];
 
       for (let q = 0; q < 4; q++) {
         const qData = quartersData[q];
@@ -578,16 +580,17 @@ export async function generateAnnualExcel(
         const fb = studentInQ ? (studentInQ.fb ?? 0) : 0;
         const chsb = studentInQ ? (studentInQ.chsb ?? 0) : 0;
         const total = studentInQ ? (studentInQ.totalScore ?? (bsb + fb + chsb)) : 0;
-        const grade = studentInQ ? (studentInQ.quarterGrade ?? 0) : 0;
+        const grade = studentInQ ? (studentInQ.quarterGrade ?? (total >= 86 ? 5 : total >= 71 ? 4 : total >= 56 ? 3 : 2)) : 0;
 
         row.getCell(c++).value = bsb || 0;
         row.getCell(c++).value = fb || 0;
         row.getCell(c++).value = chsb || 0;
-        row.getCell(c++).value = total || 0;
 
-        const gradeColLetter = ws.getColumn(c).letter;
+        const totalColLetter = ws.getColumn(c).letter;
+        row.getCell(c++).value = total || 0;
+        totalCellLetters.push(totalColLetter);
+
         row.getCell(c++).value = grade || 0;
-        gradeCellLetters.push(gradeColLetter);
         qGrades.push(grade);
       }
 
@@ -599,29 +602,28 @@ export async function generateAnnualExcel(
       row.getCell(c++).value = roundedAnnual || 0;
 
       // Imtihon
-      row.getCell(c++).value = '';
+      row.getCell(c++).value = 'OZ';
 
       // Yakuniy baho
       row.getCell(c++).value = roundedAnnual || 0;
 
-      // 1-chorak, 2-chorak, 3-chorak, 4-chorak
-      row.getCell(c++).value = { formula: `=$${gradeCellLetters[0]}${r}` };
-      row.getCell(c++).value = { formula: `=$${gradeCellLetters[1]}${r}` };
-      row.getCell(c++).value = { formula: `=$${gradeCellLetters[2]}${r}` };
-      row.getCell(c++).value = { formula: `=$${gradeCellLetters[3]}${r}` };
+      // 1-chorak, 2-chorak, 3-chorak, 4-chorak (JAMI BALLAR — foydalanuvchi faylidek!)
+      row.getCell(c++).value = { formula: `=$${totalCellLetters[0]}${r}` };
+      row.getCell(c++).value = { formula: `=$${totalCellLetters[1]}${r}` };
+      row.getCell(c++).value = { formula: `=$${totalCellLetters[2]}${r}` };
+      row.getCell(c++).value = { formula: `=$${totalCellLetters[3]}${r}` };
 
-      // Jami o'rtacha
+      // Jami o'rtacha ball
       row.getCell(c++).value = { formula: `(${c1Letter}${r}+${c2Letter}${r}+${c3Letter}${r}+${c4Letter}${r})/4` };
 
-      // O'sish kamayish
-      const trendCell = row.getCell(c++);
-      const firstGrade = qGrades[0] || 0;
-      const lastGrade = qGrades[3] || qGrades[2] || qGrades[1] || firstGrade;
-      const diff = lastGrade - firstGrade;
-      let trendText = "O'zgarmagan";
-      if (diff > 0) trendText = `O'sgan (+${diff})`;
-      else if (diff < 0) trendText = `Kamaygan (${diff})`;
-      trendCell.value = trendText;
+      // O'sish kamayish matn
+      const q1Score = (quartersData[0]?.students[idx]?.totalScore) || 0;
+      const q4Score = (quartersData[3]?.students[idx]?.totalScore) || 0;
+      const diffVal = q4Score - q1Score;
+      row.getCell(c++).value = diffVal >= 0 ? "o'sgan" : "kamaygan";
+
+      // O'sish kamayish farq (formula: -(avg - c1))
+      row.getCell(c++).value = { formula: `-(${avgLetter}${r}-${c1Letter}${r})` };
 
       for (let col = 1; col <= totalCols; col++) {
         const cell = row.getCell(col);

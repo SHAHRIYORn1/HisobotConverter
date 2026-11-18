@@ -149,14 +149,14 @@ export function App() {
     showToast("Yarim yillik namunaviy hisoboti yuklandi!", "success", "Namuna yuklandi");
   };
 
-  // Load sample data for Annual mode (7B Tarix 1-4 choraklar)
+  // Load sample data for Annual mode (6-A Adabiyot 1-4 choraklar - foydalanuvchi fayli bo'yicha)
   const handleLoadAnnualSample = () => {
     setMode('annual');
     setFiles([
-      new File(["sample1"], "7B TARIX 1-CHORAK.xlsx", { type: "application/vnd.ms-excel" }),
-      new File(["sample2"], "7B TARIX 2-CHORAK.xlsx", { type: "application/vnd.ms-excel" }),
-      new File(["sample3"], "7B TARIX 3-CHORAK.xlsx", { type: "application/vnd.ms-excel" }),
-      new File(["sample4"], "7B TARIX 4-CHORAK.xlsx", { type: "application/vnd.ms-excel" })
+      new File(["sample1"], "6A ADABIYOT 1-CHORAK.xlsx", { type: "application/vnd.ms-excel" }),
+      new File(["sample2"], "6A ADABIYOT 2-CHORAK.xlsx", { type: "application/vnd.ms-excel" }),
+      new File(["sample3"], "6A ADABIYOT 3-CHORAK.xlsx", { type: "application/vnd.ms-excel" }),
+      new File(["sample4"], "6A ADABIYOT 4-CHORAK.xlsx", { type: "application/vnd.ms-excel" })
     ]);
     setParsedDataList([
       sampleAnnualData[0],
@@ -165,12 +165,13 @@ export function App() {
       sampleAnnualData[3]
     ]);
     handleUpdateMeta({
-      gradeName: "7-B",
-      subjectName: "O‘zbekiston tarixi",
-      academicYear: "2026-2027",
-      quarterText: "Yillik hisobot"
+      gradeName: "6-A",
+      subjectName: "Adabiyot",
+      academicYear: "2025-2026",
+      quarterText: "Yillik hisobot",
+      teacherName: "R.Zebo"
     });
-    showToast("To‘liq yillik namunaviy hisoboti yuklandi!", "success", "Namuna yuklandi");
+    showToast("6-A Adabiyot to‘liq yillik namunaviy hisoboti yuklandi!", "success", "Namuna yuklandi");
   };
 
   // File selection and parsing
@@ -336,7 +337,7 @@ export function App() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-xs font-semibold transition-colors cursor-pointer shadow-xs"
               >
                 <Award className="w-4 h-4 text-purple-600" />
-                <span>Yillik namuna</span>
+                <span>6A Adabiyot Yillik namuna</span>
               </button>
 
               <button
