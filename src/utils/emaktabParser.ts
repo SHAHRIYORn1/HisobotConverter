@@ -100,18 +100,29 @@ export function parseEmaktabFile(fileBuffer: ArrayBuffer, fileName: string): Par
         nameColIdx = c;
       }
       
-      // BSB check (Row 7 or 6 usually has "BSB")
-      if (cellVal.toUpperCase() === 'BSB' || cellVal.toUpperCase().startsWith('BSB(') || cellVal.toUpperCase().startsWith('1-BSB') || cellVal.toUpperCase().startsWith('2-BSB') || cellVal.toUpperCase() === 'БСБ') {
+      // BSB check (Har qanday BSB ustuni: BSB, 1-BSB, 2-BSB, 3-BSB, БСБ, BSB(25) va h.k.)
+      const isNotChsb = !cellVal.toUpperCase().includes('CHSB') && !cellVal.toUpperCase().includes('ЧСБ');
+      const isBsbCell = isNotChsb && (
+        cellVal.toUpperCase() === 'BSB' ||
+        cellVal.toUpperCase() === 'БСБ' ||
+        /^\d+[-_ ]*(BSB|БСБ)/i.test(cellVal) ||
+        /^(BSB|БСБ)[-_ ]*\d*/i.test(cellVal) ||
+        /\b(BSB|БСБ)\(\d+\)/i.test(cellVal)
+      );
+
+      if (isBsbCell) {
         if (!bsbCols.some(b => b.colIdx === c)) {
-          let maxBall = 50;
-          if (rows[r + 1] && typeof rows[r + 1][c] === 'number') {
-            maxBall = rows[r + 1][c];
+          let maxBall: number | null = null;
+          if (rows[r + 1] && (typeof rows[r + 1][c] === 'number' || (!isNaN(parseFloat(rows[r + 1][c])) && parseFloat(rows[r + 1][c]) > 0))) {
+            maxBall = typeof rows[r + 1][c] === 'number' ? rows[r + 1][c] : parseFloat(rows[r + 1][c]);
+          } else if (rows[r + 2] && (typeof rows[r + 2][c] === 'number' || (!isNaN(parseFloat(rows[r + 2][c])) && parseFloat(rows[r + 2][c]) > 0))) {
+            maxBall = typeof rows[r + 2][c] === 'number' ? rows[r + 2][c] : parseFloat(rows[r + 2][c]);
           } else {
             const m = cellVal.match(/\((\d+)\)/);
             if (m) maxBall = parseInt(m[1]);
           }
-          const label = `BSB(${maxBall})`;
-          bsbCols.push({ colIdx: c, label, maxBall });
+
+          bsbCols.push({ colIdx: c, label: '', maxBall: maxBall || 0 });
         }
       }
 
@@ -145,11 +156,12 @@ export function parseEmaktabFile(fileBuffer: ArrayBuffer, fileName: string): Par
         if (rows[r] && rows[r][c] !== undefined) combined += ' ' + String(rows[r][c]);
       }
       combined = combined.toUpperCase();
-      if ((combined.includes('BSB') || combined.includes('БСБ')) && !bsbCols.some(b => b.colIdx === c)) {
+      const isNotChsb = !combined.includes('CHSB') && !combined.includes('ЧСБ');
+      if (isNotChsb && (combined.includes('BSB') || combined.includes('БСБ')) && !bsbCols.some(b => b.colIdx === c)) {
         let maxBall = 50;
         const m = combined.match(/(?:50|40|35|30|25|20|15)/);
         if (m) maxBall = parseInt(m[0]);
-        bsbCols.push({ colIdx: c, label: `BSB(${maxBall})`, maxBall });
+        bsbCols.push({ colIdx: c, label: '', maxBall });
       } else if ((combined.includes('CHSB') || combined.includes('ЧСБ')) && chsbColIdx === -1) {
         chsbColIdx = c;
       } else if ((combined.includes('FB') || combined.includes('ФБ')) && fbColIdx === -1) {
@@ -160,10 +172,16 @@ export function parseEmaktabFile(fileBuffer: ArrayBuffer, fileName: string): Par
     }
   }
 
+  // BSB ustunlarini ketma-ketligi bo'yicha saralash va nomlash
+  bsbCols.sort((a, b) => a.colIdx - b.colIdx);
   if (bsbCols.length > 1) {
     bsbCols.forEach((b, idx) => {
+      if (!b.maxBall || b.maxBall === 0) b.maxBall = 25;
       b.label = `${idx + 1}-BSB(${b.maxBall})`;
     });
+  } else if (bsbCols.length === 1) {
+    if (!bsbCols[0].maxBall || bsbCols[0].maxBall === 0) bsbCols[0].maxBall = 50;
+    bsbCols[0].label = `BSB(${bsbCols[0].maxBall})`;
   }
 
   // Parse student records

@@ -1103,8 +1103,12 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
                 <tr className="bg-slate-100 text-slate-900 font-serif">
                   <th className="border border-slate-400 p-2 text-center w-10">#</th>
                   <th className="border border-slate-400 p-2 text-left min-w-[200px]">F.I.Sh.</th>
-                  <th className="border border-slate-400 p-2 text-center">BSB(50) ({meta.quarterText?.includes('III') ? '3-chorak' : '1-chorak'})</th>
-                  <th className="border border-slate-400 p-2 text-center">CHSB(40) ({meta.quarterText?.includes('III') ? '4-chorak' : '2-chorak'})</th>
+                  <th className="border border-slate-400 p-2 text-center">
+                    BSB(50) {(meta.quarterText?.includes('III') || meta.quarterText?.includes('3') || meta.quarterText?.includes('4') || meta.quarterText?.includes('2-yarim')) ? '3-CHORAK' : '1-CHORAK'}
+                  </th>
+                  <th className="border border-slate-400 p-2 text-center">
+                    CHSB(40) {(meta.quarterText?.includes('III') || meta.quarterText?.includes('3') || meta.quarterText?.includes('4') || meta.quarterText?.includes('2-yarim')) ? '4-CHORAK' : '2-CHORAK'}
+                  </th>
                   <th className="border border-slate-400 p-2 text-center">FB(10)</th>
                   <th className="border border-slate-400 p-2 text-center font-bold">Jami ball(100)</th>
                   <th className="border border-slate-400 p-2 text-center font-bold">Choraklik baho</th>

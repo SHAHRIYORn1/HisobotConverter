@@ -38,8 +38,8 @@ export async function generateQuarterExcel(data: ParsedQuarterData, meta: Report
     views: [{ showGridLines: true }]
   });
 
-  const bsbCount = data.bsbStructure.length > 0 ? data.bsbStructure.length : 1;
-  const totalCols = bsbCount === 1 ? 7 : (bsbCount + 6); // #, F.I.Sh., BSBs..., ChSB, FB, Jami, Baho
+  const bsbCount = (data.bsbStructure && data.bsbStructure.length > 0) ? data.bsbStructure.length : 1;
+  const totalCols = bsbCount + 6; // #, F.I.Sh., BSBs..., ChSB, FB, Jami, Baho
 
   // Setup Column Widths
   const colWidths: { [key: number]: number } = {
@@ -74,11 +74,13 @@ export async function generateQuarterExcel(data: ParsedQuarterData, meta: Report
   // Row 4: Header
   const headerRow = ws.getRow(4);
   const headers: string[] = ['#', 'F.I.Sh.'];
-  if (data.bsbStructure.length > 1) {
-    data.bsbStructure.forEach((b, idx) => headers.push(`${idx + 1}-BSB(${b.maxBall})`));
-  } else {
-    headers.push(data.bsbStructure[0]?.label || 'BSB(50)');
-  }
+  const struct = (data.bsbStructure && data.bsbStructure.length > 0)
+    ? data.bsbStructure
+    : [{ label: 'BSB(50)', maxBall: 50 }];
+
+  struct.forEach((b, idx) => {
+    headers.push(b.label || (struct.length > 1 ? `${idx + 1}-BSB(${b.maxBall || 50})` : `BSB(${b.maxBall || 50})`));
+  });
   headers.push('ChSB(40)', 'FB(10)', 'Jami ball(100)', 'Choraklik baho');
 
   headers.forEach((h, idx) => {
@@ -115,22 +117,15 @@ export async function generateQuarterExcel(data: ParsedQuarterData, meta: Report
     cellName.border = thinBorder;
     cellName.font = { name: 'Times New Roman', size: 10 };
 
-    // BSB(s)
-    if (data.bsbStructure.length > 1) {
-      st.bsbScores.forEach(b => {
-        const cellBsb = row.getCell(c++);
-        cellBsb.value = b.score !== null ? b.score : '';
-        cellBsb.alignment = { horizontal: 'center', vertical: 'middle' };
-        cellBsb.border = thinBorder;
-        cellBsb.font = { name: 'Times New Roman', size: 10 };
-      });
-    } else {
+    // BSB(s) - Fayldagi har qanday BSB ustunlari bo'yicha dinamik
+    struct.forEach((_, bIdx) => {
       const cellBsb = row.getCell(c++);
-      cellBsb.value = st.totalBsb !== null ? st.totalBsb : (st.bsbScores[0]?.score ?? '');
+      const val = st.bsbScores?.[bIdx]?.score ?? (bIdx === 0 ? st.totalBsb : null);
+      cellBsb.value = val !== null && val !== undefined ? val : '';
       cellBsb.alignment = { horizontal: 'center', vertical: 'middle' };
       cellBsb.border = thinBorder;
       cellBsb.font = { name: 'Times New Roman', size: 10 };
-    }
+    });
 
     // ChSB
     const cellChsb = row.getCell(c++);
@@ -318,8 +313,9 @@ export async function generateHalfYearExcel(
 
   // Row 4: Header
   const headerRow = ws.getRow(4);
-  const q1Label = meta.quarterText.includes('III') ? '3-CHORAK' : '1-CHORAK';
-  const q2Label = meta.quarterText.includes('III') ? '4-CHORAK' : '2-CHORAK';
+  const isSecondHalf = meta.quarterText.includes('III') || meta.quarterText.includes('3') || meta.quarterText.includes('4') || meta.quarterText.includes('2-yarim');
+  const q1Label = isSecondHalf ? '3-CHORAK' : '1-CHORAK';
+  const q2Label = isSecondHalf ? '4-CHORAK' : '2-CHORAK';
 
   const headers = [
     '#',
@@ -625,17 +621,17 @@ export async function generateAnnualExcel(
       const avgScoreVal = validScores.length > 0 ? (validScores.reduce((a, b) => a + b, 0) / validScores.length) : 0;
       row.getCell(c++).value = { formula: `(${c1Letter}${r}+${c2Letter}${r}+${c3Letter}${r}+${c4Letter}${r})/4`, result: parseFloat(avgScoreVal.toFixed(2)) };
 
-      // O'sish kamayish farq: -(avg - c1)
+      // O'sish kamayish farq: avg - c1 (agar ball o'sgan bo'lsa farq musbat, kamaygan bo'lsa manfiy)
       const q1ScoreVal = qScores[0] || 0;
-      const diffVal = -(avgScoreVal - q1ScoreVal);
+      const diffVal = avgScoreVal - q1ScoreVal;
       const isOsgan = diffVal >= 0;
       const trendText = isOsgan ? "o'sgan" : "kamaygan";
 
       // O'sish kamayish matn: IF(diff>=0, "o'sgan", "kamaygan")
-      row.getCell(c++).value = { formula: `IF(${diffLetter}${r}>=0, "o'sgan", "kamaygan")`, result: trendText };
+      row.getCell(c++).value = { formula: `IF(${diffLetter}${r}>=0,"o'sgan","kamaygan")`, result: trendText };
 
       // O'sish kamayish farq qiymati
-      row.getCell(c++).value = { formula: `-(${avgLetter}${r}-${c1Letter}${r})`, result: parseFloat(diffVal.toFixed(2)) };
+      row.getCell(c++).value = { formula: `${avgLetter}${r}-${c1Letter}${r}`, result: parseFloat(diffVal.toFixed(2)) };
 
       for (let col = 1; col <= totalCols; col++) {
         const cell = row.getCell(col);
