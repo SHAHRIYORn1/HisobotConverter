@@ -518,8 +518,8 @@ export async function generateAnnualExcel(
     const c3Col = colIdx++; ws.getColumn(c3Col).width = 9;
     const c4Col = colIdx++; ws.getColumn(c4Col).width = 9;
     const avgCol = colIdx++; ws.getColumn(avgCol).width = 12; // Jami o'rtacha
-    ws.getColumn(colIdx++).width = 14; // O'sish kamayish (matn)
-    ws.getColumn(colIdx++).width = 9;  // Farq (qiymat)
+    const trendCol = colIdx++; ws.getColumn(trendCol).width = 14; // O'sish kamayish (matn)
+    const diffCol = colIdx++; ws.getColumn(diffCol).width = 9;  // Farq (qiymat)
 
     const totalCols = colIdx - 1;
     const lastColLetter = ws.getColumn(totalCols).letter;
@@ -561,6 +561,7 @@ export async function generateAnnualExcel(
     const c3Letter = ws.getColumn(c3Col).letter;
     const c4Letter = ws.getColumn(c4Col).letter;
     const avgLetter = ws.getColumn(avgCol).letter;
+    const diffLetter = ws.getColumn(diffCol).letter;
 
     baseList.forEach((st, idx) => {
       const row = ws.getRow(r);
@@ -614,16 +615,27 @@ export async function generateAnnualExcel(
       row.getCell(c++).value = { formula: `=$${totalCellLetters[3]}${r}` };
 
       // Jami o'rtacha ball
-      row.getCell(c++).value = { formula: `(${c1Letter}${r}+${c2Letter}${r}+${c3Letter}${r}+${c4Letter}${r})/4` };
+      const qScores = [
+        quartersData[0]?.students[idx]?.totalScore || 0,
+        quartersData[1]?.students[idx]?.totalScore || 0,
+        quartersData[2]?.students[idx]?.totalScore || 0,
+        quartersData[3]?.students[idx]?.totalScore || 0,
+      ];
+      const validScores = qScores.filter(s => s > 0);
+      const avgScoreVal = validScores.length > 0 ? (validScores.reduce((a, b) => a + b, 0) / validScores.length) : 0;
+      row.getCell(c++).value = { formula: `(${c1Letter}${r}+${c2Letter}${r}+${c3Letter}${r}+${c4Letter}${r})/4`, result: parseFloat(avgScoreVal.toFixed(2)) };
 
-      // O'sish kamayish matn
-      const q1Score = (quartersData[0]?.students[idx]?.totalScore) || 0;
-      const q4Score = (quartersData[3]?.students[idx]?.totalScore) || 0;
-      const diffVal = q4Score - q1Score;
-      row.getCell(c++).value = diffVal >= 0 ? "o'sgan" : "kamaygan";
+      // O'sish kamayish farq: -(avg - c1)
+      const q1ScoreVal = qScores[0] || 0;
+      const diffVal = -(avgScoreVal - q1ScoreVal);
+      const isOsgan = diffVal >= 0;
+      const trendText = isOsgan ? "o'sgan" : "kamaygan";
 
-      // O'sish kamayish farq (formula: -(avg - c1))
-      row.getCell(c++).value = { formula: `-(${avgLetter}${r}-${c1Letter}${r})` };
+      // O'sish kamayish matn: IF(diff>=0, "o'sgan", "kamaygan")
+      row.getCell(c++).value = { formula: `IF(${diffLetter}${r}>=0, "o'sgan", "kamaygan")`, result: trendText };
+
+      // O'sish kamayish farq qiymati
+      row.getCell(c++).value = { formula: `-(${avgLetter}${r}-${c1Letter}${r})`, result: parseFloat(diffVal.toFixed(2)) };
 
       for (let col = 1; col <= totalCols; col++) {
         const cell = row.getCell(col);
