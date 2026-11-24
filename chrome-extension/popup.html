@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <title>eMaktab Hisobot Agenti</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-box">
+        <span class="logo-icon">🤖</span>
+        <div>
+          <h1 class="logo-title">eMaktab Agenti</h1>
+          <p class="logo-subtitle">Avtomatik hisobotlar & ZIP arxiv</p>
+        </div>
+      </div>
+      <div id="statusBadge" class="status-badge checking">
+        <span class="dot"></span> <span id="statusText">Tekshirilmoqda...</span>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-body">
+      <!-- 1. Maktab & O'qituvchi sozlamalari -->
+      <section class="card">
+        <div class="card-header">
+          <span class="card-icon">🏛️</span>
+          <span class="card-title">Umumiy ma'lumotlar</span>
+        </div>
+        <div class="form-group">
+          <label for="schoolName">Maktab nomi:</label>
+          <input type="text" id="schoolName" placeholder="Xonqa tumanidagi 14-umumiy o'rta ta'lim maktab" />
+        </div>
+        <div class="form-row">
+          <div class="form-group half">
+            <label for="academicYear">O‘quv yili:</label>
+            <input type="text" id="academicYear" value="2026-2027" />
+          </div>
+          <div class="form-group half">
+            <label for="subjectName">Fan nomi:</label>
+            <input type="text" id="subjectName" placeholder="O‘zbekiston tarixi" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group half">
+            <label for="teacherName">O‘qituvchi F.I.Sh.:</label>
+            <input type="text" id="teacherName" placeholder="M.Nazarova" />
+          </div>
+          <div class="form-group half">
+            <label for="zavuchName">O‘IBDO‘ (Zavuch):</label>
+            <input type="text" id="zavuchName" placeholder="A.Berdiyeva" />
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Sinflarni tanlash / kiritish -->
+      <section class="card">
+        <div class="card-header">
+          <span class="card-icon">📚</span>
+          <span class="card-title">Qaysi sinflar uchun hisobot kerak?</span>
+        </div>
+        <div class="form-group">
+          <label for="classesInput">Sinflarni vergul bilan kiriting:</label>
+          <input type="text" id="classesInput" placeholder="Masalan: 7-a, 7-b, 9-a" />
+          <p class="field-hint">Agent ko‘rsatilgan har bir sinf uchun alohida papka va hisobotlar ochadi.</p>
+        </div>
+        <button id="detectClassesBtn" class="btn-secondary">
+          🔍 eMaktab sahifasidan sinflarni aniqlash
+        </button>
+      </section>
+
+      <!-- 3. Kerakli hisobotlar -->
+      <section class="card">
+        <div class="card-header">
+          <span class="card-icon">📊</span>
+          <span class="card-title">Tayyorlanadigan hisobotlar</span>
+        </div>
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="genQuarters" checked />
+            <span>Choraklik hisobotlar (1, 2, 3, 4-choraklar)</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="genHalfYears" checked />
+            <span>Yarim yillik hisobotlar (1-2 va 3-4 chorak)</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="genAnnual" checked />
+            <span>To‘liq Yillik hisobot (dinamika & o‘sish bilan)</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- 4. Ishga tushirish tugmasi -->
+      <button id="startAgentBtn" class="btn-primary">
+        🚀 Agentni ishga tushirish (ZIP yuklash)
+      </button>
+
+      <!-- Jarayon / Progress qismi -->
+      <div id="progressSection" class="progress-section" style="display: none;">
+        <div class="progress-bar-container">
+          <div id="progressBar" class="progress-bar"></div>
+        </div>
+        <div id="progressStatus" class="progress-status">Jarayon boshlanmoqda...</div>
+        <div id="progressLogs" class="progress-logs"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Kutubxonalar -->
+  <script src="libs/exceljs.min.js"></script>
+  <script src="libs/jszip.min.js"></script>
+  <script src="reportGenerator.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
